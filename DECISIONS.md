@@ -17,6 +17,32 @@ Creatrweb 3D Art is a creative workstation where users select a rendering librar
 | Layer | Technology |
 |---
 
+## Session 37 — Mobile Layout: Stack Configuration Panel Below Canvas (2026-04-27)
+
+**Problem:** In mobile view (≤768px), the configuration panel (`#dta-sidebar`) should stack below the canvas (`#dta-canvas-region`) with both at 100% width, matching the Data Art Application styling.
+
+### Implementation
+Added CSS rules inside the existing `@media (max-width: 768px)` block in `css/app.css` (lines 1016–1037):
+
+| Selector | Properties | Rationale |
+|----------|------------|-----------|
+| `#dta-main` | `flex-direction: column`, `height: auto`, `overflow: auto` | Stack children vertically instead of horizontal layout |
+| `#dta-canvas-region` | `flex: none`, `width: 100%`, `height: 60vh`, `min-height: 300px` | Full width canvas with viewport-relative height, minimum for usability |
+| `#dta-sidebar` | `flex: none`, `width: 100%`, `max-width: none`, `min-width: 0`, `border-left: none`, `border-top: 2px solid #c9922a` | Full width sidebar, gold border moved to top for visual separation |
+
+### Assumptions Surfaced
+1. **60vh canvas height is correct**: The reference file uses `60vh` for mobile canvas height; this was accepted as the intended behavior rather than using `min-height` only.
+2. **Gold border color #c9922a**: Matches the project's existing palette from DESIGN.md.
+3. **No HTML changes needed**: Layout is driven entirely by CSS flexbox on `#dta-main`.
+
+### Files Modified
+- `css/app.css`: Added 21 lines (comment + 3 CSS rules) inside existing `@media (max-width: 768px)` block
+
+### Reference
+Rules copied directly from the Data Art Application styling, which was the canonical mobile layout implementation for studio.php.
+
+---
+
 ## Session 36 — Remove Thumbnail Slug, Fix Blank Screen Debugging (2026-06-XX)
 
 **Problem:** After Session 35 fixes, "Loading... Figured Out" message no longer appears but embed mode shows blank black screen. User requires: (1) Remove thumbnail slug from embed codes, (2) Fix blank screen.

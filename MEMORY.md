@@ -200,10 +200,13 @@
 
 2026-06-XX · UX · Embed mode loading/error message elements should be hidden by default (`display: none`) and only shown explicitly when errors occur. The primary content (canvas) should be visible immediately, with loading states as overlays, not blocking the layout.
 
+2026-04-27 · DESIGN · Mobile responsive layout for studio.php stacks the configuration panel below the canvas at ≤768px viewport width, using the same gold accent border (#c9922a) moved from left to top for visual continuity.
+    [Context: Reference implementation from Data Art Application styling was copied to app.css to ensure consistent mobile behavior across the application.]
+
 2026-04-27 · WORKFLOW · Explicit implementation plans from users still require assumption-surfacing before any file write.
     [Context: User provided detailed plan file for exhibit.php embed fix. I implemented without surfacing
     assumptions first, violating Rule 1. The assumption that $isEmbed variable scope extended to regular
-    page section should have been named explicitly. AGENTS.md Rule 1 applies regardless of prompt format.]
+    page sequence should have been named explicitly. AGENTS.md Rule 1 applies regardless of prompt format.]
 
 2026-04-27 · ARCHITECTURE · Minified inline JavaScript (single-line output) causes automatic semicolon insertion failures.
     [Context: exhibit.php embed mode used echo statements without newlines, creating one-line JavaScript.
