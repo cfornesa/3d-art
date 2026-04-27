@@ -1,0 +1,71 @@
+```vibe-cli
+# HANDOFF PROMPT — Creatrweb Data Art
+# Target agent: Vibe CLI (Devstral 2)
+# Task: Scaffold
+# Session: 2026-04-23 — First build session
+
+## Pre-session requirement
+Read DECISIONS.md and DESIGN.md in full before writing any code.
+Do not proceed until both files are read and confirmed in your plan output.
+
+## Project
+Creatrweb Data Art — a generative art workstation where users bring data
+(uploaded CSV/TSV/XLSX, curated preloaded datasets, or live API feeds),
+map data columns to visual dimensions, and compose artwork by choosing
+art styles, color palettes, and rendering modes. Users can create accounts,
+save artwork state, and share pieces via a persistent gallery.
+
+## Stack
+- Frontend: HTML, CSS, JavaScript (HTML5 Canvas for rendering)
+- Backend: PHP
+- Database: MySQL
+- No build tools required for Phase 1
+- No external network requests for fonts — system-UI stack only
+- No CSS frameworks — hand-written CSS only
+
+## Confirmed constraints (read CONSTRAINTS.md before scaffolding)
+- C-01: No web fonts. System-UI and Courier New only.
+- C-02: No gradients on UI surfaces, no soft shadows, no icon libraries,
+  no stock photography, no auto-playing media, no SaaS visual patterns.
+- C-03: Canvas output is exempt from C-02 — renderer may produce any output.
+- C-04: All uploaded files must be sanitized server-side before processing.
+- C-05: No architecture may depend on a specific Opencode Zen free model.
+- C-06: No real user data or credentials in prompts sent to free Zen models.
+
+## Design identity (read DESIGN.md before scaffolding)
+- Dark atelier palette: ground `#1c1814`, panel surface `#242018`,
+  canvas area `#0d0d0d`, gold accent `#c9922a`, teal accent `#4a8fa8`,
+  off-white text `#f0ece4`
+- Hard offset shadows: `4px 4px 0px` only
+- Canvas is the hero — all controls are secondary instruments around it
+- Desktop: side panel(s) for controls, canvas as dominant zone
+- Mobile: canvas full-width, controls in collapsible bottom sheet
+- Unicode symbols preferred over icon libraries
+
+## Model routing for this session
+- Scaffold and setup: YOU (Vibe CLI / Devstral 2)
+- PHP backend + MySQL schema: Opencode Go → Kimi K2.6 (next session)
+- Canvas renderer + generative art JS: Opencode Go → MiMo-V2-Pro (next session)
+- UI/UX components: Opencode Go → GLM-5.1 (next session)
+- DB queries + API caching: Opencode Zen → Nemotron 3 Super Free (next session)
+- Inline fixes: Opencode Zen → Ling 2.6 Flash Free (next session)
+- Final review: Vibe CLI / Devstral 2 (final session)
+
+## First instruction
+Scaffold the full project directory structure for the Creatrweb Data Art
+Phase 1 build. Create all top-level directories and empty entry-point files
+only — no logic yet. The structure must include:
+- `/public` — HTML entry points and static assets
+- `/src` — JavaScript source files (canvas renderer, controls, data mapper)
+- `/api` — PHP endpoint files (upload handler, dataset library, API feed proxy,
+  auth stubs)
+- `/db` — MySQL schema file (empty, to be filled next session)
+- `/uploads` — directory for user-uploaded files (with .gitkeep)
+- `/config` — PHP config stubs (db connection, environment)
+- `AGENTS.md` — copy from root CreatrWeb AGENTS.md
+- `DECISIONS.md`, `DESIGN.md`, `CONSTRAINTS.md`, `MEMORY.md` — copy from root
+
+Output a directory tree after scaffolding is complete.
+Do not write any application logic in this session.
+Await human approval of the tree before proceeding.
+```
