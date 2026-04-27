@@ -297,11 +297,11 @@ $current_page = 'home';
   <!-- Landing Page Content -->
   <main id="dta-landing-main">
     <div id="dta-landing-header">
-      <h1>Creatrweb Data Art</h1>
+      <h1>Creatrweb 3D Art</h1>
     </div>
 
     <p id="dta-landing-description">
-      A multi-library 3D art workstation for creating artwork with Three.js, P5.js, and C2. Each piece uses figures configured through a layer-based management system.
+      My personal multi-library 3D art workstation for creating artwork with Three.js, P5.js, and C2. Each piece uses figures configured through a layer-based management system.
     </p>
 
     <!-- Featured Pieces Section -->
