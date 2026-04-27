@@ -145,6 +145,15 @@ Evaluate if an approved plan's gallery satisfies Rule 2 in plan implementation m
 
 ---
 
+## Session Constraint: Plan Mode Requires Explicit Permission to Exit
+Before exiting plan mode, the agent MUST:
+1. State at least one assumption surfaced during investigation
+2. Present 2-3 options for the fix (minimum)
+3. Confirm user approval via ask_user_question
+4. Log the selected option in DECISIONS.md before proceeding
+
+---
+
 ## AGENTS.md Safeguard
 
 Never edit without explicit human instruction. Any change = propose as a

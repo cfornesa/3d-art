@@ -148,128 +148,111 @@ if ($isEmbed) {
     echo '<script src="/src/libraries/p5.js"></script>';
     echo '<script src="/src/libraries/c2.js"></script>';
     
-    // Embed renderer script
-    echo '<script>';
-    echo '(function() {';
-    echo '  "use strict";';
-    echo '  var config = DTA_EMBED_CONFIG;';
-    echo '  var library = config.library || "three";';
-    echo '  var figures = config.figures || [];';
-    echo '  var canvasEl = document.getElementById("dta-embed-canvas");';
-    echo '  var errorEl = document.getElementById("dta-embed-error");';
-    echo '  var loadingEl = document.getElementById("dta-embed-loading");';
-    echo '';
-    echo '  function showError(msg) {';
-    echo '    loadingEl.style.display = "none";';
-    echo '    errorEl.textContent = msg;';
-    echo '    errorEl.style.display = "block";';
-    echo '    console.error("Embed error:", msg);';
-    echo '  }';
-    echo '';
-    echo '  function hideLoading() {';
-    echo '    loadingEl.style.display = "none";';
-    echo '  }';
-    echo '';
-    echo '  // Wait for modules to load, then initialize';
-    echo '  function initEmbed() {';
-    echo '    try {';
-    echo '      // Check for all required dependencies based on library';
-    echo '      var dependenciesReady = false;';
-    echo '      switch(library) {';
-    echo '        case "three":';
-    echo '          dependenciesReady = (window.THREE && window.DataToArt &&';
-    echo '                            window.DataToArt.FigureBase && window.DataToArt.ThreeRenderer);';
-    echo '          break;';
-    echo '        case "p5":';
-    echo '          dependenciesReady = (window.p5 && window.DataToArt &&';
-    echo '                            window.DataToArt.FigureBase && window.DataToArt.P5Renderer);';
-    echo '          break;';
-    echo '        case "c2":';
-    echo '          dependenciesReady = (window.DataToArt && window.DataToArt.FigureBase &&';
-    echo '                            window.DataToArt.C2Renderer);';
-    echo '          break;';
-    echo '        default:';
-    echo '          // Check for three by default';
-    echo '          dependenciesReady = (window.THREE && window.DataToArt &&';
-    echo '                            window.DataToArt.FigureBase && window.DataToArt.ThreeRenderer);';
-    echo '          break;';
-    echo '      }';
-    echo '';
-    echo '      if (!dependenciesReady) {';
-    echo '        console.log("Waiting for deps - THREE:", typeof THREE, "DataToArt:", typeof DataToArt);';
-    echo '        console.log("  FigureBase:", (window.DataToArt ? (window.DataToArt.FigureBase ? "available" : "undefined") : "undefined"));';
-    echo '        console.log("  Renderer:", (window.DataToArt ? (window.DataToArt.ThreeRenderer ? "available" : "undefined") : "undefined"));';
-    echo '        setTimeout(initEmbed, 100);';
-    echo '        return;';
-    echo '      }';
-    echo '';
-    echo '      // Create renderer based on library';
-    echo '      var RendererClass, renderer, options;';
-    echo '      // Verify canvas element exists (created in HTML)';
-    echo '      if (!canvasEl) {';
-    echo '        showError("Canvas element not found");';
-    echo '        return;';
-    echo '      }';
-    echo '      switch(library) {';
-    echo '        case "three":';
-    echo '          RendererClass = window.DataToArt.ThreeRenderer;';
-    echo '          options = { canvas: canvasEl };';
-    echo '          break;';
-    echo '        case "p5":';
-    echo '          RendererClass = window.DataToArt.P5Renderer;';
-    echo '          options = { canvas: canvasEl };';
-    echo '          break;';
-    echo '        case "c2":';
-    echo '          RendererClass = window.DataToArt.C2Renderer;';
-    echo '          options = { canvas: canvasEl };';
-    echo '          break;';
-    echo '        default:';
-    echo '          // Fallback to three.js for unknown libraries';
-    echo '          RendererClass = window.DataToArt.ThreeRenderer;';
-    echo '          options = { canvas: canvasEl };';
-    echo '          break;';
-    echo '      }';
-    echo '';
-    echo '      if (!RendererClass) {';
-    echo '        showError("Renderer not available for library: " + library);';
-    echo '        return;';
-    echo '      }';
-    echo '';
-    echo '      try {';
-    echo '        renderer = new RendererClass(options);';
-    echo '        hideLoading();';
-    echo '';
-    echo '        // Set figures and render';
-    echo '        if (renderer.setFigures && Array.isArray(figures)) {';
-    echo '          renderer.setFigures(figures);';
-    echo '        }';
-    echo '        if (renderer.render) {';
-    echo '          renderer.render();';
-    echo '        }';
-    echo '      } catch(e) {';
-    echo '        showError("Failed to initialize renderer: " + e.message);';
-    echo '      }';
-    echo '    } catch(e) {';
-    echo '      showError("Error: " + e.message);';
-    echo '    }';
-    echo '  }';
-    echo '';
-    echo '  // Start initialization';
-    echo '  if (document.readyState === "complete" || document.readyState === "interactive") {';
-    echo '    console.log("Starting embed - THREE:", typeof THREE, "DataToArt:", typeof DataToArt);';
-    echo '    console.log("  FigureBase:", (window.DataToArt ? (window.DataToArt.FigureBase ? "available" : "undefined") : "undefined"));';
-    echo '    console.log("  ThreeRenderer:", (window.DataToArt ? (window.DataToArt.ThreeRenderer ? "available" : "undefined") : "undefined"));';
-    echo '    setTimeout(initEmbed, 500);';
-    echo '  } else {';
-    echo '    document.addEventListener("DOMContentLoaded", function() {';
-    echo '      console.log("DOM ready - THREE:", typeof THREE, "DataToArt:", typeof DataToArt);';
-    echo '      console.log("  FigureBase:", (window.DataToArt ? (window.DataToArt.FigureBase ? "available" : "undefined") : "undefined"));';
-    echo '      console.log("  ThreeRenderer:", (window.DataToArt ? (window.DataToArt.ThreeRenderer ? "available" : "undefined") : "undefined"));';
-    echo '      setTimeout(initEmbed, 500);';
-    echo '    });';
-    echo '  }';
-    echo '})();';
-    echo '</script>';
+    // Embed renderer script - output with newlines to avoid ASI issues
+    echo "<script>\n";
+    echo "(function() {\n";
+    echo "  'use strict';\n";
+    echo "  var config = DTA_EMBED_CONFIG;\n";
+    echo "  var library = config.library || 'three';\n";
+    echo "  var figures = config.figures || [];\n";
+    echo "  var canvasEl = document.getElementById('dta-embed-canvas');\n";
+    echo "  var errorEl = document.getElementById('dta-embed-error');\n";
+    echo "  var loadingEl = document.getElementById('dta-embed-loading');\n";
+    echo "\n";
+    echo "  function showError(msg) {\n";
+    echo "    loadingEl.style.display = 'none';\n";
+    echo "    errorEl.textContent = msg;\n";
+    echo "    errorEl.style.display = 'block';\n";
+    echo "    console.error('Embed error:', msg);\n";
+    echo "  }\n";
+    echo "\n";
+    echo "  function hideLoading() {\n";
+    echo "    loadingEl.style.display = 'none';\n";
+    echo "  }\n";
+    echo "\n";
+    echo "  function initEmbed() {\n";
+    echo "    try {\n";
+    echo "      var dependenciesReady = false;\n";
+    echo "      switch(library) {\n";
+    echo "        case 'three':\n";
+    echo "          dependenciesReady = (window.THREE && window.DataToArt &&\n";
+    echo "                            window.DataToArt.FigureBase && window.DataToArt.ThreeRenderer);\n";
+    echo "          break;\n";
+    echo "        case 'p5':\n";
+    echo "          dependenciesReady = (window.p5 && window.DataToArt &&\n";
+    echo "                            window.DataToArt.FigureBase && window.DataToArt.P5Renderer);\n";
+    echo "          break;\n";
+    echo "        case 'c2':\n";
+    echo "          dependenciesReady = (window.DataToArt && window.DataToArt.FigureBase &&\n";
+    echo "                            window.DataToArt.C2Renderer);\n";
+    echo "          break;\n";
+    echo "        default:\n";
+    echo "          dependenciesReady = (window.THREE && window.DataToArt &&\n";
+    echo "                            window.DataToArt.FigureBase && window.DataToArt.ThreeRenderer);\n";
+    echo "          break;\n";
+    echo "      }\n";
+    echo "\n";
+    echo "      if (!dependenciesReady) {\n";
+    echo "        console.log('Waiting for deps...');\n";
+    echo "        setTimeout(initEmbed, 100);\n";
+    echo "        return;\n";
+    echo "      }\n";
+    echo "\n";
+    echo "      var RendererClass, renderer, options;\n";
+    echo "      if (!canvasEl) {\n";
+    echo "        showError('Canvas element not found');\n";
+    echo "        return;\n";
+    echo "      }\n";
+    echo "      switch(library) {\n";
+    echo "        case 'three':\n";
+    echo "          RendererClass = window.DataToArt.ThreeRenderer;\n";
+    echo "          options = { canvas: canvasEl };\n";
+    echo "          break;\n";
+    echo "        case 'p5':\n";
+    echo "          RendererClass = window.DataToArt.P5Renderer;\n";
+    echo "          options = { canvas: canvasEl };\n";
+    echo "          break;\n";
+    echo "        case 'c2':\n";
+    echo "          RendererClass = window.DataToArt.C2Renderer;\n";
+    echo "          options = { canvas: canvasEl };\n";
+    echo "          break;\n";
+    echo "        default:\n";
+    echo "          RendererClass = window.DataToArt.ThreeRenderer;\n";
+    echo "          options = { canvas: canvasEl };\n";
+    echo "          break;\n";
+    echo "      }\n";
+    echo "\n";
+    echo "      if (!RendererClass) {\n";
+    echo "        showError('Renderer not available for library: ' + library);\n";
+    echo "        return;\n";
+    echo "      }\n";
+    echo "\n";
+    echo "      try {\n";
+    echo "        renderer = new RendererClass(options);\n";
+    echo "        hideLoading();\n";
+    echo "        if (renderer.setFigures && Array.isArray(figures)) {\n";
+    echo "          renderer.setFigures(figures);\n";
+    echo "        }\n";
+    echo "        if (renderer.render) {\n";
+    echo "          renderer.render();\n";
+    echo "        }\n";
+    echo "      } catch(e) {\n";
+    echo "        showError('Failed to initialize renderer: ' + e.message);\n";
+    echo "      }\n";
+    echo "    } catch(e) {\n";
+    echo "      showError('Error: ' + e.message);\n";
+    echo "    }\n";
+    echo "  }\n";
+    echo "\n";
+    echo "  if (document.readyState === 'complete' || document.readyState === 'interactive') {\n";
+    echo "    setTimeout(initEmbed, 500);\n";
+    echo "  } else {\n";
+    echo "    document.addEventListener('DOMContentLoaded', function() {\n";
+    echo "      setTimeout(initEmbed, 500);\n";
+    echo "    });\n";
+    echo "  }\n";
+    echo "})();\n";
+    echo "</script>\n";
     
     echo '</body></html>';
     exit;
@@ -521,7 +504,8 @@ header('Expires: 0');
             'library' => $artwork['library'] ?? 'three',
             'figures' => $artwork['figures'] ?? [],
             'palette_config' => $artwork['palette_config'] ?? (object)[],
-            'library_config' => $artwork['library_config'] ?? (object)[]
+            'library_config' => $artwork['library_config'] ?? (object)[],
+            'embed' => $isEmbed
         ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
         
         var library = artwork.library || 'three';
@@ -532,11 +516,11 @@ header('Expires: 0');
           var dependenciesReady = false;
           switch(library) {
             case 'three':
-              dependenciesReady = (window.THREE && window.DataToArt && 
+              dependenciesReady = (window.THREE && window.DataToArt &&
                                   window.DataToArt.FigureBase && window.DataToArt.ThreeRenderer);
               break;
             case 'p5':
-              dependenciesReady = (window.p5 && window.DataToArt && 
+              dependenciesReady = (window.p5 && window.DataToArt &&
                                   window.DataToArt.FigureBase && window.DataToArt.P5Renderer);
               break;
             case 'c2':
@@ -544,16 +528,46 @@ header('Expires: 0');
                                   window.DataToArt.C2Renderer);
               break;
             default:
-              dependenciesReady = (window.THREE && window.DataToArt && 
+              dependenciesReady = (window.THREE && window.DataToArt &&
                                   window.DataToArt.FigureBase && window.DataToArt.ThreeRenderer);
               break;
           }
-          
+
           if (!dependenciesReady) {
+            console.log("Waiting for deps - THREE:", typeof THREE, "DataToArt:", typeof DataToArt);
+            var fbStatus = "undefined";
+            var renStatus = "undefined";
+            if (window.DataToArt) {
+              fbStatus = window.DataToArt.FigureBase ? "available" : "undefined";
+              renStatus = window.DataToArt.ThreeRenderer ? "available" : "undefined";
+            }
+            console.log("  FigureBase:", fbStatus);
+            console.log("  Renderer:", renStatus);
             setTimeout(initExhibit, 100);
             return;
           }
-          
+
+          // Hide non-visual elements when in embed mode
+          if (artwork.embed === true) {
+            var header = document.getElementById('dta-exhibit-header');
+            var details = document.getElementById('dta-exhibit-details');
+            var embedSection = document.getElementById('dta-exhibit-embed');
+            var footer = document.getElementById('dta-exhibit-footer');
+
+            if (header) header.style.display = 'none';
+            if (details) details.style.display = 'none';
+            if (embedSection) embedSection.style.display = 'none';
+            if (footer) footer.style.display = 'none';
+
+            // Ensure visual element is visible and takes full space
+            var visual = document.getElementById('dta-exhibit-visual');
+            if (visual) {
+              visual.style.display = 'flex';
+              visual.style.height = '100vh';
+              visual.style.marginBottom = '0';
+            }
+          }
+
           var container = document.getElementById('dta-exhibit-canvas');
           var RendererClass;
           var canvasEl = document.createElement('canvas');

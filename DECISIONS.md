@@ -2633,3 +2633,65 @@ Per C-25 and C-26: Thumbnails are for gallery display only (index.php, portfolio
 - No console errors about JSON parsing or script injection
 
 ---
+
+## Session 37 — Fix exhibit.php embed Parameter to Hide Non-Visual Elements (2026-04-27)
+
+**Problem:** When visiting `exhibit.php?id=5&embed=true`, user expects ONLY the `#dta-exhibit-visual` element to be visible, hiding header, details, embed section, and footer.
+
+**Assumption Surfaced:** The `$isEmbed` variable set at line 84 is available throughout the PHP scope, including the regular page section (lines 284+), allowing it to be passed to JavaScript for client-side CSS hiding.
+
+### Root Causes Identified
+1. **Embed flag not passed to JavaScript**: The regular exhibit page JavaScript had no awareness of the `embed=true` parameter
+2. **No CSS hiding logic**: When embed=true was passed to the regular page, all page elements (header, details, footer) remained visible
+
+### Implementation
+1. **exhibit.php:525** — Added `'embed' => $isEmbed` to the artwork JavaScript object passed to inline script
+2. **exhibit.php:558-577** — Added CSS hiding logic in `initExhibit()` function:
+   - When `artwork.embed === true`, hide `#dta-exhibit-header`, `#dta-exhibit-details`, `#dta-exhibit-embed`, `#dta-exhibit-footer`
+   - Set `#dta-exhibit-visual` to full viewport height (`100vh`) with no margin
+
+### Post-Implementation Fix 1: Syntax Error
+**Issue:** After implementation, embed mode showed `Uncaught SyntaxError: Unexpected end of input` at position 5985.
+
+**Root Cause:** The embed mode inline JavaScript used complex nested ternary operators like `(window.DataToArt ? (window.DataToArt.FigureBase ? "available" : "undefined") : "undefined")`. When all `echo` statements were concatenated by the browser into a single line, these nested ternaries caused parsing errors.
+
+**Fix:** Replaced nested ternary operators with simple if statements (lines 199-209 and 259-270 in embed mode script).
+
+### Post-Implementation Fix 2: Empty Canvas
+**Issue:** Both regular and embed modes showed empty canvas (black screen).
+
+**Root Cause 1:** The regular exhibit page JavaScript had `setTimeout(initEmbed, 100)` but the function was named `initExhibit` (line 581). This caused a ReferenceError and the retry loop failed.
+
+**Root Cause 2:** Lines 649-674 (the initialization code that calls `initExhibit()`) were placed OUTSIDE the IIFE (immediately-invoked function expression), so they couldn't access the `initExhibit` function which was inside the IIFE scope.
+
+**Fix:** 
+- Fixed function name from `initEmbed` to `initExhibit` in the retry timeout (line 581)
+- Moved initialization code back inside the IIFE with correct indentation (lines 649-656)
+- Simplified initialization code by removing redundant console.log statements that were already in the dependency check
+
+### Post-Implementation Fix 3: Embed Mode Syntax Error Persists
+**Issue:** Embed mode still showed `Uncaught SyntaxError: Unexpected end of input` even after previous fixes.
+
+**Root Cause:** The embed mode JavaScript was being output entirely on one line because PHP `echo` statements didn't include newline characters. When all JavaScript is on a single line, automatic semicolon insertion (ASI) can fail in certain edge cases, causing syntax errors. Additionally, the complex console.log statements with nested ternary operators were problematic when minified.
+
+**Fix:** Completely rewrote the embed mode JavaScript output to:
+- Use double-quoted PHP strings with explicit `\n` newline characters
+- Output proper line breaks in the generated JavaScript
+- Simplify the code by removing complex nested ternary operators
+- Use single quotes for JavaScript strings to avoid escaping issues
+- Remove redundant debug console.log statements
+
+### Files Modified
+- `exhibit.php` — Added embed flag to JS object (line 525), added CSS hiding logic (lines 558-577), simplified nested ternaries in embed mode, fixed function name mismatch, fixed IIFE scope issue, reformatted embed mode JavaScript with proper newlines
+
+### Constraints Enforced
+- Rule 7: PROMPTS.md last entry (Prompt 18) confirmed as current before implementation
+- Rule 1: Assumption surfaced about `$isEmbed` variable scope availability
+
+### Verification
+- Regular mode: `/exhibit.php?id=5` shows full page with header, details, footer
+- Embed mode: `/exhibit.php?id=5&embed=true` shows only the canvas/visual element
+- Both modes: Canvas renders correctly and accepts interaction
+- No JavaScript syntax errors in console
+
+---
