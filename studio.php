@@ -1,6 +1,6 @@
 <?php
 /**
- * Creatrweb Data Art — Protected Studio View
+ * Creatrweb 3D Art — Protected Studio View
  *
  * Route: /studio.php
  * 
@@ -24,7 +24,7 @@ if (!is_authenticated()) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Creatrweb Data Art</title>
+  <title>Creatrweb 3D Art</title>
   <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
@@ -32,14 +32,13 @@ if (!is_authenticated()) {
   <!-- Header with Navigation -->
   <header id="dta-header">
     <div class="dta-header-title">
-      <h1>Creatrweb Data Art</h1>
+      <h1>Creatrweb 3D Art</h1>
       <button class="dta-hamburger" onclick="toggleMobileNav()" aria-label="Menu">☰</button>
     </div>
     <nav class="dta-nav">
       <a href="index.php">Home</a>
       <?php if (is_authenticated()): ?>
         <a href="studio.php" class="active">Studio</a>
-        <a href="data.php">Data</a>
         <a href="portfolio.php">Portfolio</a>
         <a href="#" onclick="event.preventDefault(); logout(); toggleMobileNav();" class="dta-nav-logout">Log Out</a>
       <?php else: ?>
@@ -50,7 +49,6 @@ if (!is_authenticated()) {
       <a href="index.php">Home</a>
       <?php if (is_authenticated()): ?>
         <a href="studio.php" class="active">Studio</a>
-        <a href="data.php">Data</a>
         <a href="portfolio.php">Portfolio</a>
         <a href="#" onclick="event.preventDefault(); logout(); toggleMobileNav();" class="dta-nav-logout">Log Out</a>
       <?php else: ?>
@@ -67,51 +65,124 @@ if (!is_authenticated()) {
 
     <!-- Canvas Region (hero) -->
     <section id="dta-canvas-region">
-      <canvas id="dta-canvas"></canvas>
+      <!-- Library-specific canvas containers -->
+      <canvas id="dta-canvas-three" style="display: none;"></canvas>
+      <canvas id="dta-canvas-p5" style="display: none;"></canvas>
+      <canvas id="dta-canvas-c2" style="display: none;"></canvas>
       <div id="dta-empty-state">
-        <p>Pick a dataset to begin</p>
+        <p>Select a library and add figures to begin</p>
       </div>
     </section>
 
     <!-- Controls Sidebar -->
     <aside id="dta-sidebar">
 
-      <!-- Top Control Bar -->
-      <div class="dta-control-group">
-        <label for="dta-dataset-select">Dataset</label>
-        <select id="dta-dataset-select">
-          <option value="">— No datasets yet —</option>
+      <!-- Library Selector -->
+      <div class="dta-control-group" style="border-left: 3px solid #c9922a;">
+        <label for="dta-library-select">Rendering Library</label>
+        <select id="dta-library-select" class="dta-select">
+          <option value="three" selected>Three.js (3D)</option>
+
+          <option value="p5">P5.js (2D Creative Coding)</option>
+          <option value="c2">C2 (2D Canvas)</option>
         </select>
-
-        <label for="dta-style-select">Art Style</label>
-        <select id="dta-style-select">
-          <option value="">— Select art style —</option>
-        </select>
-
+        <p class="dta-note" style="font-size: 12px; color: #8a8580; margin-top: 8px;">
+          Choose a library per artwork. Switching changes the rendering approach.
+        </p>
+        
+        <div class="dta-button-row" style="margin-top: 16px;">
+          <button id="dta-export-btn" class="dta-btn">Export PNG</button>
+        </div>
+        
         <div class="dta-button-row">
-          <button id="dta-export-btn">Export PNG</button>
+          <button id="dta-save-artwork-btn" class="dta-btn dta-btn-primary">Save Artwork</button>
+          <button id="dta-load-artwork-btn" class="dta-btn">Load Artwork</button>
+          <button id="dta-new-artwork-btn" class="dta-btn">New Artwork</button>
         </div>
         <div class="dta-button-row">
-          <button id="dta-save-artwork-btn">Save Artwork</button>
-          <button id="dta-load-artwork-btn">Load Artwork</button>
-          <button id="dta-new-artwork-btn">New Artwork</button>
-        </div>
-        <div class="dta-button-row">
-          <button id="dta-delete-artwork-btn" class="dta-delete-artwork-btn">Delete Artwork</button>
-        </div>
-
-        <!-- Mode Toggle -->
-        <div class="dta-mode-toggle" style="margin-top: 16px; padding: 8px; background: #1a1a1a; border: 1px solid #2a2a2a;">
-          <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
-            <input type="radio" name="dimension-mode" id="dta-mode-manual" value="manual" checked style="margin: 0;">
-            <span style="font-size: 13px; color: #c9922a; font-weight: 600;">Manual Dimensions</span>
-          </label>
-          <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; margin-left: 24px;">
-            <input type="radio" name="dimension-mode" id="dta-mode-data" value="data" style="margin: 0;">
-            <span style="font-size: 13px; color: #8a8580;">Data-Driven</span>
-          </label>
+          <button id="dta-delete-artwork-btn" class="dta-btn dta-btn-danger" style="display: none;">Delete Artwork</button>
         </div>
       </div>
+
+      <!-- Figure Manager Panel -->
+      <details id="dta-figures-section" class="dta-control-group" style="border-left: 3px solid #4a8fa8;" open>
+        <summary>Figure Manager</summary>
+        <div id="dta-figure-manager-container"></div>
+      </details>
+
+      <!-- Figure Properties Panel (appears when figure selected) -->
+      <details id="dta-figure-properties-section" class="dta-control-group" style="border-left: 3px solid #4a8fa8; display: none;">
+        <summary>Figure Properties</summary>
+        <div id="dta-figure-properties-panel">
+          <label for="dta-figure-name">Name</label>
+          <input type="text" id="dta-figure-name" placeholder="Figure name">
+          
+          <label for="dta-figure-type">Type</label>
+          <select id="dta-figure-type" class="dta-select">
+            <option value="box">Box</option>
+            <option value="sphere">Sphere</option>
+            <option value="plane">Plane</option>
+            <option value="cylinder">Cylinder</option>
+            <option value="torus">Torus</option>
+            <option value="cone">Cone</option>
+          </select>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+            <div>
+              <label for="dta-figure-x">Position X</label>
+              <input type="number" id="dta-figure-x" step="0.1" value="0">
+            </div>
+            <div>
+              <label for="dta-figure-y">Position Y</label>
+              <input type="number" id="dta-figure-y" step="0.1" value="0">
+            </div>
+            <div>
+              <label for="dta-figure-z">Position Z</label>
+              <input type="number" id="dta-figure-z" step="0.1" value="0">
+            </div>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+            <div>
+              <label for="dta-figure-rotation-x">Rotation X</label>
+              <input type="number" id="dta-figure-rotation-x" step="1" value="0">
+            </div>
+            <div>
+              <label for="dta-figure-rotation-y">Rotation Y</label>
+              <input type="number" id="dta-figure-rotation-y" step="1" value="0">
+            </div>
+            <div>
+              <label for="dta-figure-rotation-z">Rotation Z</label>
+              <input type="number" id="dta-figure-rotation-z" step="1" value="0">
+            </div>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+            <div>
+              <label for="dta-figure-scale-x">Scale X</label>
+              <input type="number" id="dta-figure-scale-x" step="0.1" value="1">
+            </div>
+            <div>
+              <label for="dta-figure-scale-y">Scale Y</label>
+              <input type="number" id="dta-figure-scale-y" step="0.1" value="1">
+            </div>
+            <div>
+              <label for="dta-figure-scale-z">Scale Z</label>
+              <input type="number" id="dta-figure-scale-z" step="0.1" value="1">
+            </div>
+          </div>
+          
+          <label for="dta-figure-color" style="margin-top: 12px;">Color</label>
+          <input type="color" id="dta-figure-color" value="#c9922a">
+          
+          <label for="dta-figure-opacity" style="margin-top: 12px;">Opacity</label>
+          <input type="range" id="dta-figure-opacity" min="0" max="1" step="0.1" value="1">
+          <span id="dta-figure-opacity-value">1.0</span>
+        </div>
+      </details>
+
+      <!-- Palette Picker -->
+      <div id="dta-palette-controls"></div>
 
       <!-- Artwork Metadata Panel -->
       <details id="dta-metadata-section" class="dta-control-group">
@@ -120,9 +191,6 @@ if (!is_authenticated()) {
           <input type="hidden" id="dta-current-artwork-id" value="">
           <label for="dta-artwork-title">Title</label>
           <input type="text" id="dta-artwork-title" placeholder="Give your artwork a title">
-
-          <label for="dta-artwork-description">Description</label>
-          <textarea id="dta-artwork-description" placeholder="Describe your artwork (optional)" rows="3"></textarea>
 
           <label for="dta-artwork-tags">Tags</label>
           <input type="text" id="dta-artwork-tags" placeholder="Comma-separated tags (optional)">
@@ -138,13 +206,13 @@ if (!is_authenticated()) {
             </label>
           </div>
 
-          <button id="dta-save-metadata-btn" class="dta-metadata-save-btn">Save Metadata</button>
+          <button id="dta-save-metadata-btn" class="dta-btn dta-btn-primary" style="margin-top: 12px;">Save Metadata</button>
+          <button id="dta-delete-artwork-btn" class="dta-btn dta-btn-danger" style="display:none; margin-top: 12px;">Delete Artwork</button>
           <div id="dta-save-status"></div>
-          <button id="dta-delete-artwork-btn" class="dta-delete-artwork-btn" style="display:none; margin-top: 12px; background: #1c1814; border: 2px solid #c9922a; color: #f0ece4; font-family: system-ui; font-size: 13px; padding: 8px 16px; cursor: pointer;">Delete Artwork</button>
         </div>
       </details>
 
-      <!-- Column Mapper & Palette Picker are auto-rendered here by Controls -->
+      <!-- Available Controls -->
       <div id="dta-controls"></div>
 
     </aside>
@@ -200,28 +268,20 @@ if (!is_authenticated()) {
     });
   </script>
 
-  <!-- Scripts (load order is critical) -->
-  <script src="src/canvas/styles/particleField.js"></script>
-  <script src="src/canvas/styles/geometricGrid.js"></script>
-  <script src="src/canvas/styles/flowingCurves.js"></script>
-  <script src="src/canvas/styles/radialWave.js"></script>
-  <script src="src/canvas/styles/fractalDust.js"></script>
-  <script src="src/canvas/styles/neuralFlow.js"></script>
-  <script src="src/canvas/styles/pixelMosaic.js"></script>
-  <script src="src/canvas/styles/voronoiCells.js"></script>
-  <script src="src/canvas/styles/radialSymmetry.js"></script>
-  <script src="src/canvas/styles/timeSeries.js"></script>
-  <script src="src/canvas/styles/heatMap.js"></script>
-  <script src="src/canvas/styles/scatterMatrix.js"></script>
-  <script src="src/canvas/styles/barCode.js"></script>
-  <script src="src/canvas/artStyles.js"></script>
-  <script src="src/canvas/renderer.js"></script>
-  <script src="src/data/normalizer.js"></script>
-  <script src="src/data/dataMapper.js"></script>
-  <script src="src/controls/columnMapper.js"></script>
-  <script src="src/controls/palettePicker.js"></script>
-  <script src="src/controls/visualDimensions.js"></script>
-  <script src="src/controls/controls.js"></script>
+  <!-- Library Scripts (loaded dynamically by app.js when library is selected) -->
+  <!-- Three.js and p5.js loaded on-demand -->
+
+  <!-- Creatrweb 3D Art Modules -->
+  <!-- Figure System -->
+  <script src="src/figures/figure-base.js"></script>
+  <script src="src/figures/figure-manager.js"></script>
+  
+  <!-- Library Renderers -->
+  <script src="src/libraries/three.js"></script>
+  <script src="src/libraries/p5.js"></script>
+  <script src="src/libraries/c2.js"></script>
+  
+  <!-- Main App -->
   <script src="src/app.js"></script>
 
 </body>

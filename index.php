@@ -1,11 +1,11 @@
 <?php
 /**
- * Creatrweb Data Art — Public Landing Page
+ * Creatrweb 3D Art — Public Landing Page
  *
  * Route: /
  * 
  * - Show public landing page with featured artworks
- * - Authenticated users can access Studio and Data via navigation
+ * - Authenticated users can access Studio and Portfolio via navigation
  */
 
 require_once __DIR__ . '/config/bootstrap.php';
@@ -20,7 +20,7 @@ $current_page = 'home';
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Creatrweb Data Art</title>
+  <title>Creatrweb 3D Art</title>
   <link rel="stylesheet" href="css/app.css">
   <script>
     var DTA_CONFIG = {
@@ -269,14 +269,13 @@ $current_page = 'home';
   <!-- Header with Navigation -->
   <header id="dta-header">
     <div class="dta-header-title">
-      <h1><a href="/portfolio.php">Creatrweb Data Art</a></h1>
+      <h1><a href="/portfolio.php">Creatrweb 3D Art</a></h1>
       <button class="dta-hamburger" onclick="toggleMobileNav()" aria-label="Menu">☰</button>
     </div>
     <nav class="dta-nav">
       <a href="index.php" class="active">Home</a>
       <?php if (is_authenticated()): ?>
         <a href="studio.php">Studio</a>
-        <a href="data.php">Data</a>
         <a href="portfolio.php">Portfolio</a>
         <a href="#" onclick="event.preventDefault(); logout(); toggleMobileNav();" class="dta-nav-logout">Log Out</a>
       <?php else: ?>
@@ -287,7 +286,6 @@ $current_page = 'home';
       <a href="index.php" class="active">Home</a>
       <?php if (is_authenticated()): ?>
         <a href="studio.php">Studio</a>
-        <a href="data.php">Data</a>
         <a href="portfolio.php">Portfolio</a>
         <a href="#" onclick="event.preventDefault(); logout(); toggleMobileNav();" class="dta-nav-logout">Log Out</a>
       <?php else: ?>
@@ -303,7 +301,7 @@ $current_page = 'home';
     </div>
 
     <p id="dta-landing-description">
-      This is a personal data art workstation where I transform datasets that matter to me into generative art pieces. All data is beautiful and so are their expressions, whether abstract or informative.
+      A multi-library 3D art workstation for creating artwork with Three.js, P5.js, and C2. Each piece uses figures configured through a layer-based management system.
     </p>
 
     <!-- Featured Pieces Section -->
@@ -316,13 +314,13 @@ $current_page = 'home';
     </section>
 
     <p id="dta-landing-description">
-      The point of these pieces are not to meaningfully reflect the data but, rather, to experiment with different creative manifestations of visualizing data. This is data art, not data visualization.
+      Each artwork uses exactly one rendering library and can feature up to 40 figures. Configuration is saved and thumbnails are generated for gallery display, while embeds re-render from configuration on each view.
     </p>
   </main>
 
   <footer id="dta-landing-footer">
-    <p>Creatrweb Data Art: My data art workstation. Copyright (c) <?php echo date('Y'); ?> <a href="https://creatrweb.com" style="color:#606060;" target="_blank">Fornesus</a>.</p>
-    <p>Developed with open-source AI tools and models, such as: Vibe CLI, Kilo Code, and Opencode Go.</p>
+    <p>Creatrweb 3D Art: Multi-library art generation studio. Copyright (c) <?php echo date('Y'); ?> <a href="https://creatrweb.com" style="color:#606060;" target="_blank">Fornesus</a>.</p>
+    <p>Developed with open-source AI tools and models: Vibe CLI, Kilo Code, Opencode Go.</p>
     <p><a href="portfolio.php" style="color:#606060;">View all public artworks</a>.</p>
   </footer>
 

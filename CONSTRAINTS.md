@@ -14,6 +14,8 @@
      When a constraint is lifted, mark it LIFTED with date and reason
      rather than deleting it, so the decision history is preserved. -->
 
+**Note:** Updated 2026-06-XX for Creatrweb 3D Art retrofit. Constraints C-11 through C-19 have been lifted or superseded by the architectural pivot.
+
 ---
 
 ## Active Constraints
@@ -134,7 +136,13 @@ data collection terms.
 
 ---
 
-### C-11 · Artwork Mode Persistence
+## Superseded Constraints (Creatrweb 3D Art Retrofit)
+
+The following constraints were lifted or superseded by the architectural pivot from data-driven workstation to multi-library direct-creation tool. They are preserved for historical reference.
+
+---
+
+### C-11 · Artwork Mode Persistence **[SUPERSEDED 2026-06-XX]**
 
 **CONSTRAINT:** Artwork state must persist both mode (manual/data-driven) and all visual dimensions (X, Y, Size, Opacity, Rotation, Color) for Manual mode artworks. The database schema must support storing and retrieving these values to ensure artwork fidelity across save/load cycles.
 
@@ -142,9 +150,11 @@ data collection terms.
 
 **SET:** 2026-04-25 · Session 28 — Hybrid mode architecture requires explicit mode tracking. Without this constraint, Manual mode artworks lose their explicit dimension state.
 
+**SUPERSEDED BY:** C-24 (Single Library Per Artwork) and C-26 (Configuration-Only Persistence). The new architecture stores library + figures configuration instead of mode + visual dimensions.
+
 ---
 
-### C-12 · Bidirectional Style Identification
+### C-12 · Bidirectional Style Identification **[SUPERSEDED 2026-06-XX]**
 
 **CONSTRAINT:** Style identification must be bidirectional (styleKey ⇄ database ID) for save and load operations. The mapping between database art_style_id and JavaScript styleKey must be complete and consistent to ensure artworks load with the correct style regardless of which direction is used for lookup.
 
@@ -152,9 +162,11 @@ data collection terms.
 
 **SET:** 2026-04-25 · Session 28 — Incomplete styleKeyForId map (only IDs 1-3) caused new style artworks (IDs 4-13) to load with wrong style.
 
+**SUPERSEDED BY:** C-24 (Single Library Per Artwork). The 13 art styles have been replaced by 3 library renderers (Three.js, P5.js, C2). A-Frame removed due to persistent full-screen canvas issues. Library selection is stored directly as a string (three, p5, c2) rather than as a database ID.
+
 ---
 
-### C-13 · Manual Mode Data Point Rendering
+### C-13 · Manual Mode Data Point Rendering **[LIFTED 2026-06-XX]**
 
 **CONSTRAINT:** Manual mode must generate sufficient data points (minimum 30) for meaningful art style rendering. Single or very few data points result in minimal visual output that does not represent the intended aesthetic for any art style.
 
@@ -162,9 +174,11 @@ data collection terms.
 
 **SET:** 2026-04-25 · Session 28 — Initial implementation generated only 1 data point, causing "very little rendering" output. Art styles expect multiple points to produce meaningful visualizations.
 
+**LIFTED:** The Manual/Data-Driven mode concept has been replaced by library-based rendering. Each figure is a discrete element rather than a data point. The figure limit (C-23) serves as the new constraint.
+
 ---
 
-### C-14 · VisualDimensions Panel Visibility
+### C-14 · VisualDimensions Panel Visibility **[LIFTED 2026-06-XX]**
 
 **CONSTRAINT:** VisualDimensions panel (with sliders for X, Y, Size, Opacity, Rotation, and Color swatch) must be visible and functional in Manual mode. This panel is the primary control interface for Manual mode and must not be hidden or missing.
 
@@ -172,9 +186,11 @@ data collection terms.
 
 **SET:** 2026-04-25 · Session 28 — VisualDimensions module existed but was not integrated into Controls, causing the panel to be missing from the Manual mode interface.
 
+**LIFTED:** Replaced by Figure Manager panel with layer-based controls. VisualDimensions module deprecated along with Manual/Data-Driven mode concept.
+
 ---
 
-### C-15 · Mode Toggle Panel Visibility
+### C-15 · Mode Toggle Panel Visibility **[LIFTED 2026-06-XX]**
 
 **CONSTRAINT:** Mode toggle must correctly show/hide appropriate control panels — VisualDimensions for Manual mode, ColumnMapper for Data-Driven mode. Only the relevant panel should be visible at any time.
 
@@ -182,9 +198,11 @@ data collection terms.
 
 **SET:** 2026-04-25 · Session 28 — Mode toggle UI existed in studio.php but lacked JavaScript support to show/hide panels based on mode selection.
 
+**LIFTED:** Replaced by library selector dropdown. Mode concept superseded by library selection. Figure Manager panel replaces both VisualDimensions and ColumnMapper.
+
 ---
 
-### C-16 · DOM Element Null Safety
+### C-16 · DOM Element Null Safety **[PARTIALLY SUPERSEDED 2026-06-XX]**
 
 **CONSTRAINT:** All DOM element references in shared JavaScript modules (app.js, controls.js) must handle missing elements gracefully with null checks. Pages like studio.php and index.php have different DOM structures but share the same JavaScript files.
 
@@ -192,9 +210,11 @@ data collection terms.
 
 **SET:** 2026-04-25 · Session 28 — App.js referenced elements like dta-file-upload, dta-render-btn, dta-logout-btn that don't exist in studio.php, causing ReferenceError and preventing initialization.
 
+**PARTIALLY SUPERSEDED:** The principle remains valid, but many specific elements (dta-file-upload, mode toggle radios) will be removed. New elements (library selector, figure manager) will require null checks in the refactored code.
+
 ---
 
-### C-17 · Manual Mode Dimension Normalization
+### C-17 · Manual Mode Dimension Normalization **[LIFTED 2026-06-XX]**
 
 **CONSTRAINT:** Manual mode must normalize explicit dimensions to 0-1 range to match data-driven mode contract. All art styles expect visual dimension values in 0-1 normalized format from data-driven mode, and Manual mode must produce compatible data points to ensure consistent rendering across all styles.
 
@@ -202,9 +222,11 @@ data collection terms.
 
 **SET:** 2026-06-25 · Session 22 — Dimensions were not properly normalized: X/Y values could be outside 0-1 range, Size was divided by canvas dimensions making it microscopic, Color was passed as hex string where styles expected 0-1 palette index, Rotation format was inconsistent. Normalization ensures Manual mode data points match data-driven mode format.
 
+**LIFTED:** Manual/Data-Driven mode concept replaced by library-based rendering with direct figure configuration.
+
 ---
 
-### C-18 · Grid Generation Bounds
+### C-18 · Grid Generation Bounds **[LIFTED 2026-06-XX]**
 
 **CONSTRAINT:** Grid generation in Manual mode must center around explicit position without producing out-of-bounds coordinates. Generated data points must remain within or near the 0-1 normalized range to be properly interpreted by all art styles.
 
@@ -212,15 +234,19 @@ data collection terms.
 
 **SET:** 2026-06-25 · Session 22 — Previous offset calculation (col/(cols-1) * 0.8 - 0.4) could push points to -0.4 to 1.4 range when combined with explicit position. Centered grid approach with controlled spread (±0.3) keeps points within reasonable bounds.
 
+**LIFTED:** Manual mode concept replaced by direct figure creation. Figures are positioned explicitly rather than generated from grids.
+
 ---
 
-### C-19 · Thumbnail Generation Requirements
+### C-19 · Thumbnail Generation Requirements **[SUPERSEDED 2026-06-XX]**
 
-**CONSTRAINT:** Thumbnail generation requires both canvas.toDataURL() without security errors and a writable thumbnails directory. The canvas must not be tainted by cross-origin images, and the server must have write permissions to public/assets/thumbnails/ for thumbnail PNG files to be saved successfully.
+**CONSTRAINT:** Thumbnail generation requires both canvas.toDataURL() without security errors and a writable thumbnails directory. The canvas must not be tained by cross-origin images, and the server must have write permissions to public/assets/thumbnails/ for thumbnail PNG files to be saved successfully.
 
 **SCOPE:** src/app.js save handler (thumbnail capture), api/artwork.php (thumbnail processing), public/assets/thumbnails/ directory.
 
 **SET:** 2026-06-25 · Session 22 — Thumbnails were not being produced because frontend wasn't capturing canvas and sending thumbnail_data. Even with capture, canvas taint or missing directory would prevent success.
+
+**SUPERSEDED BY:** C-26 (Configuration-Only Persistence). Thumbnails are still generated for gallery display (index.php, portfolio.php) but the requirement is now tied to the new rendering architecture. Library-specific renderers must support thumbnail capture via their common interface.
 
 ---
 
@@ -251,3 +277,101 @@ data collection terms.
 **SCOPE:** All implementation sessions resulting in code changes.
 
 **SET:** 2025-XX-XX · Session 23 — DECISIONS.md and CONSTRAINTS.md not updated during session; MEMORY.md not proposed before final response. Required post-session cleanup.
+
+---
+
+### C-23 · Maximum Figure Limit
+
+**CONSTRAINT:** Each artwork is limited to a maximum of 40 figures. This is a hard limit that cannot be exceeded. The UI must prevent adding figure #41, and any attempt to load or create an artwork with more than 40 figures must be rejected.
+
+**SCOPE:** Figure Manager module, studio.php UI, save/load operations, API artwork endpoints.
+
+**SET:** 2026-06-XX · Creatrweb 3D Art retrofit — Browser performance constraint on mid-range devices. Rendering 40+ Three.js meshes or P5 shapes causes unacceptable frame rate degradation.
+
+---
+
+### C-24 · Single Library Per Artwork
+
+**CONSTRAINT:** Each artwork must use exactly one rendering library. The library selection is stored with the artwork and auto-selected when loaded. Library switching changes the artwork's rendering approach entirely.
+
+**SCOPE:** Database schema (artworks.library column), studio.php library selector, save/load operations, rendering pipeline.
+
+**SET:** 2026-06-XX · Creatrweb 3D Art retrofit — User confirmed one-library-per-artwork model. Simplifies architecture while offering 3 distinct rendering approaches (Three.js, P5.js, C2). A-Frame removed due to persistent full-screen canvas issues. Replaces the previous Manual/Data-Driven mode toggle.
+
+---
+
+### C-25 · Embed Re-rendering
+
+**CONSTRAINT:** Embedded artworks (via iframe on exhibit.php) must re-render from their stored configuration on each view. Thumbnails are NOT used for embeds — only for gallery display on index.php and portfolio.php.
+
+**SCOPE:** exhibit.php embed code, API artwork endpoints, frontend renderer initialization.
+
+**SET:** 2026-06-XX · Creatrweb 3D Art retrofit — Ensures embeds always show current artwork state. Configuration-only persistence requires re-rendering for accuracy.
+
+---
+
+### C-26 · Configuration-Only Persistence
+
+**CONSTRAINT:** Saved artworks store configuration only (library, figures array, palette, tags). Rendered output is NOT stored. Thumbnails are generated for display purposes but are not the source of truth.
+
+**SCOPE:** Database schema, save operations, load operations, rendering pipeline.
+
+**SET:** 2026-06-XX · Creatrweb 3D Art retrofit — Enables flexibility (re-render at any resolution) and ensures embeds show current state. Trade-off: initial render delay on page load.
+
+---
+
+### C-27 · Unified Coordinate System Convention
+
+**CONSTRAINT:** All rendering libraries (Three.js, P5.js, C2) must share the same coordinate system convention: position (0, 0, 0) represents the visual center of the canvas. Library-specific renderers implement this via translation: C2 uses `ctx.translate(clientWidth/2, clientHeight/2)`, Three.js positions camera at (0,0,5) looking at origin, P5.js uses `p.translate(width/2, height/2)`.
+
+**SCOPE:** All library-specific renderer implementations (Three.js, P5.js, C2 renderers), figure positioning logic, Figure Manager coordinate handling.
+
+**SET:** 2026-06-XX · Session 31 — Discovered P5.js was using p5.js default top-left origin while C2 and Three.js used center origin, causing user to position figures at (550, 400) instead of (0, 0) for center placement. Unified behavior ensures consistent figure positioning across all libraries.
+
+---
+
+### C-28 · Thumbnail Payload Inclusion
+
+**CONSTRAINT:** The `thumbnail_data` field must be included in the payload when saving artwork configurations. The renderer's `captureThumbnail()` method produces a base64-encoded PNG that must be sent to the API for server-side storage.
+
+**RATIONALE:** Thumbnails are required for gallery display (index.php, portfolio.php) per C-25 and C-26. Omitting the thumbnail_data from the payload prevents thumbnails from being generated and stored, resulting in "No thumbnail available" placeholders.
+
+**SCOPE:** src/app.js `_onSaveArtworkClick()` and any other save/update handlers.
+
+**SET:** Session 32 — Bug fix: `_onSaveArtworkClick()` in src/app.js captured thumbnails via `captureThumbnail()` but failed to include `thumbnail_data` in the payload object sent to api/artwork.php. This prevented thumbnails from being saved despite the capture method working correctly.
+
+---
+
+### C-29 · Renderer Animation Loop Requirement
+
+**CONSTRAINT:** Three.js renderer must maintain a continuous animation loop for interactive 3D rendering. The `start()` method must be called during renderer initialization to enable camera interaction and dynamic updates.
+
+**RATIONALE:** Three.js 3D scenes require continuous rendering to respond to user interaction (camera movement) and to maintain visual consistency. Without an active animation loop, the scene only renders when explicitly triggered, causing stale display states after operations like thumbnail capture.
+
+**SCOPE:** src/libraries/three.js constructor and initialization.
+
+**SET:** Session 32 — Three.js `captureThumbnail()` resized the renderer for thumbnails but after restoring original size, failed to re-render. The animation loop was never started, so `_needsRender` flag had no effect. Canvas appeared blank after save.
+
+---
+
+### C-30 · Consistent Thumbnail Dimensions
+
+**CONSTRAINT:** All library renderers must produce thumbnails at exactly THUMBNAIL_WIDTH × THUMBNAIL_HEIGHT (200×200) dimensions. The `captureThumbnail(width, height)` method must respect the provided dimensions and return a 200×200 PNG image.
+
+**RATIONALE:** Thumbnails are displayed in fixed-size containers in portfolio.php and index.php. Inconsistent thumbnail sizes cause layout issues and visual inconsistency. Per C-25, thumbnails are for gallery display only, so they must be uniformly sized.
+
+**SCOPE:** All library renderer `captureThumbnail()` implementations (Three.js, P5.js, C2).
+
+**SET:** Session 32 — P5.js and C2 ignored width/height parameters and captured full-size canvases, while Three.js correctly resized to 200×200.
+
+---
+
+### C-31 · Canvas CSS Style Preservation
+
+**CONSTRAINT:** Renderer operations must not permanently modify canvas element inline CSS styles. Temporary size changes for operations like thumbnail capture must use the `updateStyle=false` parameter (Three.js) or avoid inline style modifications entirely.
+
+**RATIONALE:** Canvas dimensions should be controlled by external CSS stylesheets for consistent layout and responsive behavior. Inline style modifications from renderer operations cause permanent corruption that persists across artwork loads, requiring page refresh to resolve.
+
+**SCOPE:** All library renderer methods that modify canvas/renderer size, particularly `captureThumbnail()` implementations.
+
+**SET:** Session 32 — Three.js `captureThumbnail()` called `setSize()` with default `updateStyle=true`, which overwrote canvas inline styles with device-pixel dimensions instead of CSS-pixel dimensions, causing 2x zoom effect and mispositioned display.

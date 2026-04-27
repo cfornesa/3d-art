@@ -1012,27 +1012,328 @@ html, body {
   .dta-hamburger {
     margin-left: auto;
   }
+}
 
-  /* Issue 5: studio.php sidebar stacks below canvas */
-  #dta-main {
-    flex-direction: column;
-    height: auto;
-    overflow: auto;
-  }
+/* =================================================================
+   Creatrweb 3D Art — New Figure Manager UI Styles
+   ================================================================= */
 
-  #dta-canvas-region {
-    flex: none;
-    width: 100%;
-    height: 60vh;
-    min-height: 300px;
-  }
+/* Library-specific canvas containers */
+#dta-canvas-three,
+#dta-canvas-p5,
+#dta-canvas-c2 {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+}
 
-  #dta-sidebar {
-    flex: none;
-    width: 100%;
-    max-width: none;
-    min-width: 0;
-    border-left: none;
-    border-top: 2px solid #c9922a;
-  }
+/* Library selector */
+#dta-library-select {
+  width: 100%;
+  padding: 8px 12px;
+  background: #1c1814;
+  color: #f0ece4;
+  border: 1px solid #333;
+  font-family: system-ui;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+#dta-library-select option {
+  background: #1c1814;
+  color: #f0ece4;
+}
+
+/* Figure Manager */
+#dta-figures-section {
+  margin-top: 24px;
+}
+
+#dta-figures-section summary {
+  cursor: pointer;
+  color: #4a8fa8;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+#dta-figure-manager-container {
+  margin-top: 12px;
+}
+
+.dta-figure-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+#dta-figure-manager-container .dta-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.dta-figure-count {
+  font-size: 12px;
+  color: #8a8580;
+}
+
+.dta-figure-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.dta-figure-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #242018;
+  border: 1px solid #2a2a2a;
+  border-radius: 0;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.dta-figure-item:hover {
+  background: #2a2622;
+}
+
+.dta-figure-item-selected {
+  background: #4a8fa8;
+  border-color: #4a8fa8;
+}
+
+.dta-figure-item-selected:hover {
+  background: #4a8fa8;
+}
+
+.dta-figure-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dta-figure-visibility {
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.dta-figure-layer {
+  font-size: 11px;
+  color: #8a8580;
+  white-space: nowrap;
+}
+
+.dta-figure-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.dta-figure-actions .dta-btn {
+  padding: 2px 6px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.dta-btn-danger {
+  background: #8b0000;
+  color: #ffffff;
+  border-color: #8b0000;
+}
+
+.dta-btn-danger:hover {
+  background: #a00000;
+  border-color: #a00000;
+}
+
+/* Figure Properties Panel */
+#dta-figure-properties-section {
+  margin-top: 24px;
+}
+
+#dta-figure-properties-section summary {
+  cursor: pointer;
+  color: #4a8fa8;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+#dta-figure-properties-panel {
+  margin-top: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+#dta-figure-properties-panel label {
+  display: block;
+  font-size: 12px;
+  color: #8a8580;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+#dta-figure-properties-panel input[type="text"],
+#dta-figure-properties-panel input[type="number"],
+#dta-figure-properties-panel input[type="color"],
+#dta-figure-properties-panel select {
+  width: 100%;
+  padding: 6px 8px;
+  background: #1c1814;
+  color: #f0ece4;
+  border: 1px solid #333;
+  font-family: system-ui;
+  font-size: 13px;
+}
+
+#dta-figure-properties-panel input[type="color"] {
+  height: 36px;
+  padding: 4px;
+}
+
+#dta-figure-properties-panel input[type="range"] {
+  width: 100%;
+  cursor: pointer;
+}
+
+#dta-figure-opacity-value {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 12px;
+  color: #8a8580;
+  min-width: 36px;
+}
+
+#dta-figure-properties-panel .dta-select {
+  width: 100%;
+  padding: 6px 8px;
+  background: #1c1814;
+  color: #f0ece4;
+  border: 1px solid #333;
+  font-family: system-ui;
+  font-size: 13px;
+}
+
+/* Empty state for canvas region */
+#dta-empty-state {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #606060;
+  font-style: italic;
+  pointer-events: none;
+  display: none;
+}
+
+#dta-empty-state.dta-visible {
+  display: block;
+}
+
+/* Status and error display */
+.dta-error,
+.dta-status {
+  padding: 12px 24px;
+  margin: 16px auto;
+  border-radius: 0;
+  font-size: 14px;
+  text-align: center;
+  max-width: 600px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.dta-error.dta-visible,
+.dta-status.dta-visible {
+  opacity: 1;
+}
+
+.dta-error {
+  background: #8b0000;
+  color: #ffffff;
+  border: 1px solid #a00000;
+}
+
+.dta-status {
+  background: #4a8fa8;
+  color: #ffffff;
+  border: 1px solid #5aa0b8;
+}
+
+/* Button styles */
+.dta-btn {
+  display: inline-block;
+  padding: 8px 16px;
+  background: #242018;
+  color: #f0ece4;
+  border: 1px solid #333;
+  font-family: system-ui;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.dta-btn:hover {
+  background: #2a2622;
+  border-color: #444;
+}
+
+.dta-btn-primary {
+  background: #c9922a;
+  color: #1c1814;
+  border-color: #c9922a;
+}
+
+.dta-btn-primary:hover {
+  background: #a67a22;
+  border-color: #a67a22;
+}
+
+.dta-button-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+/* Details element styling */
+details > summary {
+  list-style: none;
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+details[open] > summary {
+  margin-bottom: 8px;
+}
+
+/* Control group styling */
+.dta-control-group {
+  background: #242018;
+  border: 1px solid #2a2a2a;
+  border-left: 3px solid #c9922a;
+  padding: 16px;
+  margin-top: 24px;
+  box-shadow: 4px 4px 0px #000000;
+}
+
+.dta-control-group:first-child {
+  margin-top: 0;
 }

@@ -1,9 +1,9 @@
 <?php
 /**
- * Creatrweb Data Art — Artwork Endpoint
+ * Creatrweb 3D Art — Artwork Endpoint
  *
  * POST   /api/artwork.php          Save a new artwork
- * PATCH  /api/artwork.php?id={id}  Update artwork metadata (title, description, tags, is_public, is_featured)
+ * PATCH  /api/artwork.php?id={id}  Update artwork (config + metadata)
  * GET    /api/artwork.php?id={id}  Get single artwork (public if is_public=1, else owned)
  * GET    /api/artwork.php          List current user's artworks
  * DELETE /api/artwork.php?id={id}  Delete a user-owned artwork
@@ -11,6 +11,9 @@
  * POST, PATCH, and DELETE require authentication.
  * GET (single) allows unauthenticated access for public artworks.
  * GET (list) requires authentication.
+ *
+ * Libraries supported: three, p5, c2 (A-Frame removed)
+ * Maximum figures per artwork: 40 (hard limit, enforced at app level)
  */
 
 header('Content-Type: application/json');
@@ -35,6 +38,9 @@ if (!$is_single_get) {
     $currentUserId = !empty($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : null;
 }
 
+// Valid library values (A-Frame removed due to persistent full-screen issues)
+$validLibraries = ['three', 'p5', 'c2'];
+
 // ── POST — Save artwork ──────────────────────────────────────
 
 if ($method === 'POST') {
@@ -48,30 +54,25 @@ if ($method === 'POST') {
         exit;
     }
 
-    // Extract and validate required fields
-    $art_style_id     = $body['art_style_id'] ?? null;
-    $title            = $body['title'] ?? null;
-    $column_mapping   = $body['column_mapping'] ?? null;
-    $palette_config   = $body['palette_config'] ?? null;
-    $rendering_config = $body['rendering_config'] ?? null;
-    $dataset_id       = $body['dataset_id'] ?? null;
-    $is_public        = $body['is_public'] ?? ARTWORK_DEFAULT_IS_PUBLIC;
-
-    // Extract optional metadata fields
-    $description      = $body['description'] ?? null;
-    $tags             = $body['tags'] ?? null;
-    $is_featured      = $body['is_featured'] ?? ARTWORK_DEFAULT_IS_FEATURED;
-    
-    // Manual mode fields
-    $mode             = $body['mode'] ?? 'data';
-    $visual_dimensions = $body['visual_dimensions'] ?? null;
+    // Extract and validate fields
+    $title          = $body['title'] ?? null;
+    $library        = $body['library'] ?? 'three';
+    $figures        = $body['figures'] ?? [];
+    $palette_config = $body['palette_config'] ?? null;
+    $library_config = $body['library_config'] ?? null;
+    $tags           = $body['tags'] ?? null;
+    $is_public      = $body['is_public'] ?? ARTWORK_DEFAULT_IS_PUBLIC;
+    $is_featured    = $body['is_featured'] ?? ARTWORK_DEFAULT_IS_FEATURED;
+    $thumbnail_data = $body['thumbnail_data'] ?? null;
 
     // Validate required fields
     $missing = [];
-    if ($art_style_id === null) $missing[] = 'art_style_id';
     if ($title === null || $title === '') $missing[] = 'title';
-    if ($column_mapping === null) $missing[] = 'column_mapping';
-    if ($palette_config === null) $missing[] = 'palette_config';
+    
+    // Library must be valid
+    if (!in_array($library, $validLibraries)) {
+        $library = 'three'; // Default to three.js
+    }
 
     if (!empty($missing)) {
         http_response_code(400);
@@ -92,17 +93,7 @@ if ($method === 'POST') {
         exit;
     }
 
-    // Validate description length (Text field but enforce reasonable limit)
-    if ($description !== null && mb_strlen($description) > 10000) {
-        http_response_code(400);
-        echo json_encode([
-            'success' => false,
-            'error'   => 'Description must not exceed 10000 characters',
-        ]);
-        exit;
-    }
-
-    // Validate tags length (VARCHAR(255))
+    // Validate tags length
     if ($tags !== null && mb_strlen($tags) > 255) {
         http_response_code(400);
         echo json_encode([
@@ -127,164 +118,101 @@ if ($method === 'POST') {
     if ($is_featured === false) $is_featured = ARTWORK_DEFAULT_IS_FEATURED;
     $is_featured = $is_featured ? 1 : 0;
 
-    // Validate column_mapping is an array (JSON object/array decoded)
-    if (!is_array($column_mapping)) {
+    // Validate figures is an array (JSON array decoded)
+    if (!is_array($figures)) {
         http_response_code(400);
         echo json_encode([
             'success' => false,
-            'error'   => 'column_mapping must be a JSON object or array',
+            'error'   => 'figures must be a JSON array',
         ]);
         exit;
     }
 
-    // Validate palette_config is an array
-    if (!is_array($palette_config)) {
+    // Validate figure count does not exceed 40 (C-23: Maximum Figure Limit)
+    if (count($figures) > 40) {
         http_response_code(400);
         echo json_encode([
             'success' => false,
-            'error'   => 'palette_config must be a JSON object or array',
+            'error'   => 'Maximum 40 figures per artwork',
         ]);
         exit;
     }
 
-    // Validate rendering_config if provided (must be array or null)
-    if ($rendering_config !== null && !is_array($rendering_config)) {
+    // Validate palette_config is an array or null
+    if ($palette_config !== null && !is_array($palette_config)) {
         http_response_code(400);
         echo json_encode([
             'success' => false,
-            'error'   => 'rendering_config must be a JSON object, array, or null',
+            'error'   => 'palette_config must be a JSON object or null',
+        ]);
+        exit;
+    }
+
+    // Validate library_config is an array or null
+    if ($library_config !== null && !is_array($library_config)) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'error'   => 'library_config must be a JSON object or null',
         ]);
         exit;
     }
 
     try {
-        // Validate art_style_id exists and is active
-        $style_stmt = $pdo->prepare('
-            SELECT id FROM art_styles WHERE id = :id AND is_active = 1
-        ');
-        $style_stmt->execute([':id' => $art_style_id]);
-        if (!$style_stmt->fetch()) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'Invalid art style']);
-            exit;
-        }
-
-        // If dataset_id provided, verify ownership or preloaded
-        if ($dataset_id !== null) {
-            $dataset_id = filter_var($dataset_id, FILTER_VALIDATE_INT);
-            if ($dataset_id === false || $dataset_id <= 0) {
-                http_response_code(400);
-                echo json_encode([
-                    'success' => false,
-                    'error'   => 'Dataset not found or access denied',
-                ]);
-                exit;
-            }
-
-            $ds_stmt = $pdo->prepare('
-                SELECT id, user_id, source_type
-                FROM datasets
-                WHERE id = :id
-            ');
-            $ds_stmt->execute([':id' => $dataset_id]);
-            $dataset = $ds_stmt->fetch();
-
-            if (!$dataset) {
-                http_response_code(400);
-                echo json_encode([
-                    'success' => false,
-                    'error'   => 'Dataset not found or access denied',
-                ]);
-                exit;
-            }
-
-            // Must be owned by user OR preloaded
-            if ($dataset['user_id'] !== null && (int) $dataset['user_id'] !== $currentUserId
-                && $dataset['source_type'] !== 'preloaded'
-            ) {
-                http_response_code(400);
-                echo json_encode([
-                    'success' => false,
-                    'error'   => 'Dataset not found or access denied',
-                ]);
-                exit;
-            }
-        }
-
-        // Insert artwork
         // Encode JSON fields (validate encoding doesn't fail)
-        $encoded_column_mapping = json_encode($column_mapping);
-        $encoded_palette_config = json_encode($palette_config);
-        $encoded_rendering_config = ($rendering_config !== null) ? json_encode($rendering_config) : null;
-        
-        if ($encoded_column_mapping === false || $encoded_palette_config === false) {
+        $encoded_figures = json_encode($figures);
+        $encoded_palette_config = ($palette_config !== null) ? json_encode($palette_config) : null;
+        $encoded_library_config = ($library_config !== null) ? json_encode($library_config) : null;
+
+        if ($encoded_figures === false) {
             http_response_code(400);
             echo json_encode([
                 'success' => false,
-                'error'   => 'Failed to encode data as JSON: ' . json_last_error_msg(),
+                'error'   => 'Failed to encode figures as JSON: ' . json_last_error_msg(),
             ]);
             exit;
         }
-        if ($rendering_config !== null && $encoded_rendering_config === false) {
+        if ($palette_config !== null && $encoded_palette_config === false) {
             http_response_code(400);
             echo json_encode([
                 'success' => false,
-                'error'   => 'Failed to encode rendering_config as JSON: ' . json_last_error_msg(),
+                'error'   => 'Failed to encode palette_config as JSON: ' . json_last_error_msg(),
+            ]);
+            exit;
+        }
+        if ($library_config !== null && $encoded_library_config === false) {
+            http_response_code(400);
+            echo json_encode([
+                'success' => false,
+                'error'   => 'Failed to encode library_config as JSON: ' . json_last_error_msg(),
             ]);
             exit;
         }
 
-        // Validate mode
-        if (!in_array($mode, ['manual', 'data'])) {
-            $mode = 'data';
-        }
-        
-        // Encode visual_dimensions if provided
-        $encoded_visual_dimensions = null;
-        if ($visual_dimensions !== null) {
-            $encoded_visual_dimensions = json_encode($visual_dimensions);
-            if ($encoded_visual_dimensions === false) {
-                http_response_code(400);
-                echo json_encode([
-                    'success' => false,
-                    'error'   => 'Failed to encode visual_dimensions: ' . json_last_error_msg(),
-                ]);
-                exit;
-            }
-        }
-
+        // Insert artwork with NULL thumbnail_path initially
         $insert_stmt = $pdo->prepare('
             INSERT INTO artworks
-                (user_id, dataset_id, art_style_id, title, description,
-                 column_mapping, palette_config, rendering_config, is_public, is_featured, mode, visual_dimensions, tags, thumbnail_path)
+                (`user_id`, `title`, `library`, `figures`, `palette_config`, `library_config`, `tags`, `is_public`, `is_featured`, `thumbnail_path`)
             VALUES
-                (:user_id, :dataset_id, :art_style_id, :title, :description,
-                 :column_mapping, :palette_config, :rendering_config, :is_public, :is_featured, :mode, :visual_dimensions, :tags, NULL)
+                (:user_id, :title, :library, :figures, :palette_config, :library_config, :tags, :is_public, :is_featured, NULL)
         ');
 
         $insert_stmt->execute([
-            ':user_id'          => $currentUserId,
-            ':dataset_id'       => $dataset_id,
-            ':art_style_id'     => $art_style_id,
-            ':title'            => $title,
-            ':description'      => $description,
-            ':column_mapping'   => $encoded_column_mapping,
-            ':palette_config'   => $encoded_palette_config,
-            ':rendering_config' => $encoded_rendering_config,
-            ':is_public'        => $is_public,
+            ':user_id'         => $currentUserId,
+            ':title'           => $title,
+            ':library'         => $library,
+            ':figures'         => $encoded_figures,
+            ':palette_config'  => $encoded_palette_config,
+            ':library_config'  => $encoded_library_config,
+            ':tags'            => $tags,
+            ':is_public'       => $is_public,
             ':is_featured'     => $is_featured,
-            ':mode'            => $mode,
-            ':visual_dimensions' => $encoded_visual_dimensions,
-            ':tags'             => $tags,
         ]);
 
         $artwork_id = (int) $pdo->lastInsertId();
 
         // ── Process thumbnail (if provided) ──────────────────────────────────
-        $thumbnail_data = $body['thumbnail_data'] ?? null;
-        error_log('artwork.php: thumbnail_data received: ' . ($thumbnail_data !== null ? 'YES (length: ' . strlen($thumbnail_data) . ')' : 'NULL'));
         if ($thumbnail_data !== null) {
-            error_log('artwork.php: Processing thumbnail for artwork_id: ' . $artwork_id);
             // Strip the data:image/png;base64, prefix if present
             $base64_string = preg_replace('/^data:image\/\w+;base64,/', '', $thumbnail_data);
             $image_data = base64_decode($base64_string);
@@ -292,19 +220,12 @@ if ($method === 'POST') {
             if ($image_data !== false && strlen($image_data) > 0) {
                 $thumbnail_filename = $artwork_id . '_' . time() . '.png';
                 $thumbnail_path_full = ARTWORK_THUMBNAIL_DIR . $thumbnail_filename;
-                error_log('artwork.php: Writing thumbnail to: ' . $thumbnail_path_full);
 
                 if (file_put_contents($thumbnail_path_full, $image_data) !== false) {
-                    error_log('artwork.php: Thumbnail file written successfully');
                     // Update the artwork record with the thumbnail filename
-                    $update_thumb_stmt = $pdo->prepare('UPDATE artworks SET thumbnail_path = :thumbnail_path WHERE id = :id');
+                    $update_thumb_stmt = $pdo->prepare('UPDATE artworks SET `thumbnail_path` = :thumbnail_path WHERE `id` = :id');
                     $update_thumb_stmt->execute([':thumbnail_path' => $thumbnail_filename, ':id' => $artwork_id]);
-                    error_log('artwork.php: Database updated with thumbnail_path: ' . $thumbnail_filename);
-                } else {
-                    error_log('artwork.php: Failed to write thumbnail file: ' . $thumbnail_path_full);
                 }
-            } else {
-                error_log('artwork.php: Failed to decode thumbnail_base64 for artwork_id: ' . $artwork_id);
             }
         }
 
@@ -324,7 +245,7 @@ if ($method === 'POST') {
     exit;
 }
 
-// ── PATCH — Update artwork metadata ──────────────────────────────
+// ── PATCH — Update artwork ────────────────────────────────────
 
 if ($method === 'PATCH') {
     $id = isset($_GET['id']) ? trim($_GET['id']) : null;
@@ -352,8 +273,8 @@ if ($method === 'PATCH') {
         exit;
     }
 
-    // Only allow updating these metadata fields
-    $allowedFields = ['art_style_id', 'title', 'description', 'tags', 'dataset_id', 'column_mapping', 'palette_config', 'rendering_config', 'is_public', 'is_featured', 'mode', 'visual_dimensions', 'thumbnail_data'];
+    // Allowed fields for update
+    $allowedFields = ['title', 'library', 'figures', 'palette_config', 'library_config', 'tags', 'is_public', 'is_featured', 'thumbnail_data'];
     $updates = [];
     $params = ['id' => $id, 'user_id' => $currentUserId];
     $thumbnail_data = null;
@@ -361,110 +282,6 @@ if ($method === 'PATCH') {
     foreach ($allowedFields as $field) {
         if (isset($body[$field])) {
             switch ($field) {
-                case 'art_style_id':
-                    $val = filter_var($body['art_style_id'], FILTER_VALIDATE_INT);
-                    if ($val === false || $val <= 0) {
-                        http_response_code(400);
-                        echo json_encode(['success' => false, 'error' => 'Invalid art_style_id']);
-                        exit;
-                    }
-                    // Verify art_style exists and is active
-                    $style_chk = $pdo->prepare('SELECT id FROM art_styles WHERE id = :id AND is_active = 1');
-                    $style_chk->execute([':id' => $val]);
-                    if (!$style_chk->fetch()) {
-                        http_response_code(400);
-                        echo json_encode(['success' => false, 'error' => 'Invalid art style']);
-                        exit;
-                    }
-                    $updates[] = "`$field` = :$field";
-                    $params[":$field"] = $val;
-                    break;
-
-                case 'dataset_id':
-                    $val = filter_var($body['dataset_id'], FILTER_VALIDATE_INT);
-                    if ($val === false || $val <= 0) {
-                        http_response_code(400);
-                        echo json_encode(['success' => false, 'error' => 'Invalid dataset_id']);
-                        exit;
-                    }
-                    $updates[] = "`$field` = :$field";
-                    $params[":$field"] = $val;
-                    break;
-
-                case 'column_mapping':
-                    if (!is_array($body['column_mapping'])) {
-                        http_response_code(400);
-                        echo json_encode(['success' => false, 'error' => 'column_mapping must be a JSON object or array']);
-                        exit;
-                    }
-                    $encoded = json_encode($body['column_mapping']);
-                    if ($encoded === false) {
-                        http_response_code(400);
-                        echo json_encode(['success' => false, 'error' => 'Failed to encode column_mapping as JSON']);
-                        exit;
-                    }
-                    $updates[] = "`$field` = :$field";
-                    $params[":$field"] = $encoded;
-                    break;
-
-                case 'palette_config':
-                    if (!is_array($body['palette_config'])) {
-                        http_response_code(400);
-                        echo json_encode(['success' => false, 'error' => 'palette_config must be a JSON object or array']);
-                        exit;
-                    }
-                    $encoded = json_encode($body['palette_config']);
-                    if ($encoded === false) {
-                        http_response_code(400);
-                        echo json_encode(['success' => false, 'error' => 'Failed to encode palette_config as JSON']);
-                        exit;
-                    }
-                    $updates[] = "`$field` = :$field";
-                    $params[":$field"] = $encoded;
-                    break;
-
-                case 'rendering_config':
-                    if ($body['rendering_config'] !== null && !is_array($body['rendering_config'])) {
-                        http_response_code(400);
-                        echo json_encode(['success' => false, 'error' => 'rendering_config must be a JSON object, array, or null']);
-                        exit;
-                    }
-                    $encoded = ($body['rendering_config'] !== null) ? json_encode($body['rendering_config']) : null;
-                    if ($body['rendering_config'] !== null && $encoded === false) {
-                        http_response_code(400);
-                        echo json_encode(['success' => false, 'error' => 'Failed to encode rendering_config as JSON']);
-                        exit;
-                    }
-                    $updates[] = "`$field` = :$field";
-                    $params[":$field"] = $encoded;
-                    break;
-
-                case 'mode':
-                    if (!in_array($body['mode'], ['manual', 'data'])) {
-                        http_response_code(400);
-                        echo json_encode(['success' => false, 'error' => 'mode must be "manual" or "data"']);
-                        exit;
-                    }
-                    $updates[] = "`$field` = :$field";
-                    $params[":$field"] = $body['mode'];
-                    break;
-
-                case 'visual_dimensions':
-                    if ($body['visual_dimensions'] !== null && !is_array($body['visual_dimensions'])) {
-                        http_response_code(400);
-                        echo json_encode(['success' => false, 'error' => 'visual_dimensions must be a JSON object, array, or null']);
-                        exit;
-                    }
-                    $encoded = ($body['visual_dimensions'] !== null) ? json_encode($body['visual_dimensions']) : null;
-                    if ($body['visual_dimensions'] !== null && $encoded === false) {
-                        http_response_code(400);
-                        echo json_encode(['success' => false, 'error' => 'Failed to encode visual_dimensions as JSON']);
-                        exit;
-                    }
-                    $updates[] = "`$field` = :$field";
-                    $params[":$field"] = $encoded;
-                    break;
-
                 case 'title':
                     if (mb_strlen($body['title']) > 255) {
                         http_response_code(400);
@@ -475,14 +292,67 @@ if ($method === 'PATCH') {
                     $params[":$field"] = $body['title'];
                     break;
 
-                case 'description':
-                    if (mb_strlen($body['description']) > 10000) {
+                case 'library':
+                    if (!in_array($body['library'], $validLibraries)) {
                         http_response_code(400);
-                        echo json_encode(['success' => false, 'error' => 'Description must not exceed 10000 characters']);
+                        echo json_encode(['success' => false, 'error' => 'Invalid library. Must be one of: ' . implode(', ', $validLibraries)]);
                         exit;
                     }
                     $updates[] = "`$field` = :$field";
-                    $params[":$field"] = $body['description'];
+                    $params[":$field"] = $body['library'];
+                    break;
+
+                case 'figures':
+                    if (!is_array($body['figures'])) {
+                        http_response_code(400);
+                        echo json_encode(['success' => false, 'error' => 'figures must be a JSON array']);
+                        exit;
+                    }
+                    if (count($body['figures']) > 40) {
+                        http_response_code(400);
+                        echo json_encode(['success' => false, 'error' => 'Maximum 40 figures per artwork']);
+                        exit;
+                    }
+                    $encoded = json_encode($body['figures']);
+                    if ($encoded === false) {
+                        http_response_code(400);
+                        echo json_encode(['success' => false, 'error' => 'Failed to encode figures as JSON']);
+                        exit;
+                    }
+                    $updates[] = "`$field` = :$field";
+                    $params[":$field"] = $encoded;
+                    break;
+
+                case 'palette_config':
+                    if ($body['palette_config'] !== null && !is_array($body['palette_config'])) {
+                        http_response_code(400);
+                        echo json_encode(['success' => false, 'error' => 'palette_config must be a JSON object or null']);
+                        exit;
+                    }
+                    $encoded = ($body['palette_config'] !== null) ? json_encode($body['palette_config']) : null;
+                    if ($body['palette_config'] !== null && $encoded === false) {
+                        http_response_code(400);
+                        echo json_encode(['success' => false, 'error' => 'Failed to encode palette_config as JSON']);
+                        exit;
+                    }
+                    $updates[] = "`$field` = :$field";
+                    $params[":$field"] = $encoded;
+                    break;
+
+                case 'library_config':
+                    if ($body['library_config'] !== null && !is_array($body['library_config'])) {
+                        http_response_code(400);
+                        echo json_encode(['success' => false, 'error' => 'library_config must be a JSON object or null']);
+                        exit;
+                    }
+                    $encoded = ($body['library_config'] !== null) ? json_encode($body['library_config']) : null;
+                    if ($body['library_config'] !== null && $encoded === false) {
+                        http_response_code(400);
+                        echo json_encode(['success' => false, 'error' => 'Failed to encode library_config as JSON']);
+                        exit;
+                    }
+                    $updates[] = "`$field` = :$field";
+                    $params[":$field"] = $encoded;
                     break;
 
                 case 'tags':
@@ -523,7 +393,7 @@ if ($method === 'PATCH') {
 
     try {
         // Verify ownership
-        $chk_stmt = $pdo->prepare('SELECT user_id FROM artworks WHERE id = :id AND user_id = :user_id');
+        $chk_stmt = $pdo->prepare('SELECT `user_id` FROM artworks WHERE `id` = :id AND `user_id` = :user_id');
         $chk_stmt->execute([':id' => $id, ':user_id' => $currentUserId]);
         if (!$chk_stmt->fetch()) {
             http_response_code(404);
@@ -535,7 +405,7 @@ if ($method === 'PATCH') {
         $params[':id'] = $id;
         $params[':user_id'] = $currentUserId;
         $setClause = implode(', ', $updates);
-        $update_sql = "UPDATE artworks SET $setClause, updated_at = CURRENT_TIMESTAMP WHERE id = :id AND user_id = :user_id";
+        $update_sql = "UPDATE artworks SET $setClause, `updated_at` = CURRENT_TIMESTAMP WHERE `id` = :id AND `user_id` = :user_id";
         $update_stmt = $pdo->prepare($update_sql);
         $update_stmt->execute($params);
 
@@ -547,9 +417,8 @@ if ($method === 'PATCH') {
 
         // ── Process thumbnail if provided ──────────────────────────────────
         if ($thumbnail_data !== null) {
-            error_log('artwork.php PATCH: Processing thumbnail for artwork_id: ' . $id);
             // Fetch current thumbnail_path to delete old file
-            $old_thumb_stmt = $pdo->prepare('SELECT thumbnail_path FROM artworks WHERE id = :id');
+            $old_thumb_stmt = $pdo->prepare('SELECT `thumbnail_path` FROM artworks WHERE `id` = :id');
             $old_thumb_stmt->execute([':id' => $id]);
             $old_thumb = $old_thumb_stmt->fetch();
             
@@ -557,7 +426,6 @@ if ($method === 'PATCH') {
                 $old_thumb_path_full = ARTWORK_THUMBNAIL_DIR . $old_thumb['thumbnail_path'];
                 if (file_exists($old_thumb_path_full)) {
                     unlink($old_thumb_path_full);
-                    error_log('artwork.php PATCH: Deleted old thumbnail: ' . $old_thumb_path_full);
                 }
             }
 
@@ -568,19 +436,12 @@ if ($method === 'PATCH') {
             if ($image_data !== false && strlen($image_data) > 0) {
                 $thumbnail_filename = $id . '_' . time() . '.png';
                 $thumbnail_path_full = ARTWORK_THUMBNAIL_DIR . $thumbnail_filename;
-                error_log('artwork.php PATCH: Writing thumbnail to: ' . $thumbnail_path_full);
 
                 if (file_put_contents($thumbnail_path_full, $image_data) !== false) {
-                    error_log('artwork.php PATCH: Thumbnail file written successfully');
                     // Update the artwork record with the new thumbnail filename
-                    $update_thumb_stmt = $pdo->prepare('UPDATE artworks SET thumbnail_path = :thumbnail_path WHERE id = :id');
+                    $update_thumb_stmt = $pdo->prepare('UPDATE artworks SET `thumbnail_path` = :thumbnail_path WHERE `id` = :id');
                     $update_thumb_stmt->execute([':thumbnail_path' => $thumbnail_filename, ':id' => $id]);
-                    error_log('artwork.php PATCH: Database updated with thumbnail_path: ' . $thumbnail_filename);
-                } else {
-                    error_log('artwork.php PATCH: Failed to write thumbnail file: ' . $thumbnail_path_full);
                 }
-            } else {
-                error_log('artwork.php PATCH: Failed to decode thumbnail_base64 for artwork_id: ' . $id);
             }
         }
 
@@ -599,7 +460,7 @@ if ($method === 'PATCH') {
     exit;
 }
 
-// ── GET — Retrieve artwork(s) ────────────────────────────────
+// ── GET — Retrieve artwork(s) ──────────────────────────────────
 
 if ($method === 'GET') {
     $id = isset($_GET['id']) ? trim($_GET['id']) : null;
@@ -617,19 +478,17 @@ if ($method === 'GET') {
             if ($currentUserId !== null) {
                 // Authenticated: can see own private + any public
                 $stmt = $pdo->prepare('
-                    SELECT a.*, s.display_name AS art_style_name
-                    FROM artworks a
-                    JOIN art_styles s ON a.art_style_id = s.id
-                    WHERE a.id = :id AND (a.is_public = 1 OR a.user_id = :user_id)
+                    SELECT *
+                    FROM artworks
+                    WHERE `id` = :id AND (`is_public` = 1 OR `user_id` = :user_id)
                 ');
                 $stmt->execute([':id' => $id, ':user_id' => $currentUserId]);
             } else {
                 // Unauthenticated: only public artworks
                 $stmt = $pdo->prepare('
-                    SELECT a.*, s.display_name AS art_style_name
-                    FROM artworks a
-                    JOIN art_styles s ON a.art_style_id = s.id
-                    WHERE a.id = :id AND a.is_public = 1
+                    SELECT *
+                    FROM artworks
+                    WHERE `id` = :id AND `is_public` = 1
                 ');
                 $stmt->execute([':id' => $id]);
             }
@@ -643,10 +502,9 @@ if ($method === 'GET') {
             }
 
             // Decode JSON fields
-            $artwork['column_mapping']   = json_decode($artwork['column_mapping'], true);
-            $artwork['palette_config']   = json_decode($artwork['palette_config'], true);
-            $artwork['rendering_config'] = json_decode($artwork['rendering_config'], true);
-            $artwork['visual_dimensions'] = $artwork['visual_dimensions'] !== null ? json_decode($artwork['visual_dimensions'], true) : null;
+            $artwork['figures']        = json_decode($artwork['figures'], true);
+            $artwork['palette_config'] = json_decode($artwork['palette_config'], true);
+            $artwork['library_config'] = json_decode($artwork['library_config'], true);
 
             echo json_encode([
                 'success' => true,
@@ -656,21 +514,19 @@ if ($method === 'GET') {
         } else {
             // ── List user's artworks ─────────────────────────
             $stmt = $pdo->prepare('
-                SELECT a.*, s.display_name AS art_style_name
-                FROM artworks a
-                JOIN art_styles s ON a.art_style_id = s.id
-                WHERE a.user_id = :user_id
-                ORDER BY a.created_at DESC
+                SELECT *
+                FROM artworks
+                WHERE `user_id` = :user_id
+                ORDER BY `created_at` DESC
             ');
             $stmt->execute([':user_id' => $currentUserId]);
             $artworks = $stmt->fetchAll();
 
             // Decode JSON fields for each artwork
             foreach ($artworks as &$artwork) {
-                $artwork['column_mapping']   = json_decode($artwork['column_mapping'], true);
-                $artwork['palette_config']   = json_decode($artwork['palette_config'], true);
-                $artwork['rendering_config'] = json_decode($artwork['rendering_config'], true);
-                $artwork['visual_dimensions'] = $artwork['visual_dimensions'] !== null ? json_decode($artwork['visual_dimensions'], true) : null;
+                $artwork['figures']        = json_decode($artwork['figures'], true);
+                $artwork['palette_config'] = json_decode($artwork['palette_config'], true);
+                $artwork['library_config'] = json_decode($artwork['library_config'], true);
             }
             unset($artwork);
 
@@ -711,9 +567,9 @@ if ($method === 'DELETE') {
     try {
         // Verify ownership and retrieve thumbnail_path
         $stmt = $pdo->prepare('
-            SELECT user_id, thumbnail_path
+            SELECT `user_id`, `thumbnail_path`
             FROM artworks
-            WHERE id = :id AND user_id = :user_id
+            WHERE `id` = :id AND `user_id` = :user_id
         ');
         $stmt->execute([':id' => $id, ':user_id' => $currentUserId]);
         $artwork = $stmt->fetch();
@@ -725,7 +581,7 @@ if ($method === 'DELETE') {
         }
 
         // Delete DB record
-        $del_stmt = $pdo->prepare('DELETE FROM artworks WHERE id = :id AND user_id = :user_id');
+        $del_stmt = $pdo->prepare('DELETE FROM artworks WHERE `id` = :id AND `user_id` = :user_id');
         $del_stmt->execute([':id' => $id, ':user_id' => $currentUserId]);
 
         // Delete thumbnail file if it exists

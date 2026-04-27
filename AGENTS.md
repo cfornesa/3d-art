@@ -90,6 +90,16 @@ At session start, before any build work:
 
 ---
 
+## Rule 2 — Gallery Protocol
+Before ANY code change affecting architecture, dependencies, or user-facing behavior:
+1. Present Option A: Direct implementation
+2. Present Option B: Alternative approach (must be meaningfully different)
+3. Present Option C: Reframe/challenge the premise
+4. User must explicitly select ONE option
+5. Log selection in DECISIONS.md
+
+---
+
 ## New Vendor Dependency (mandatory question, always ask)
 
 > "This dependency sends data to [service]. If [service] changes its API,

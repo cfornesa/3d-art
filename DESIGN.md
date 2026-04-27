@@ -17,6 +17,8 @@
      before any other design question. It never asks for Declared
      Preferences first. -->
 
+**Note:** This document was updated as part of the Creatrweb 3D Art retrofit (2026-06-XX), transitioning from a data-driven generative art workstation to a multi-library direct-creation tool.
+
 ---
 
 ## References
@@ -51,6 +53,7 @@
 ---
 
 ## Derived Identity
+**Updated 2026-06-XX for Creatrweb 3D Art retrofit**
 <!-- AGENT-PROPOSED, HUMAN-CONFIRMED
      Confirmed by owner, 2026-04-23. -->
 
@@ -74,9 +77,12 @@ practice, not to a generic generative art tool category.
   Rounded-corner-everything. Gradients used decoratively. Stock photography. Any UI
   choice that could belong to a Figma plugin or a no-code product page. Anything that
   could have been produced by a generic AI without a specific human author behind it.
+  Library-specific UI widgets that break the unified atelier metaphor.
 
 - **The feeling on first load:** Ease and invitation. A dark atelier, ready for work.
   The canvas glows. The user is not being onboarded — they are being handed an instrument.
+  The library selector feels like choosing a medium (oil, watercolor, clay) rather than
+  configuring software options.
 
 ---
 
@@ -147,6 +153,20 @@ practice, not to a generic generative art tool category.
 2026-04-23 · VOICE · The user is handed an instrument, not onboarded into a product.
     Ease and invitation are the emotional targets on first load — comfort without
     condescension.
+
+2026-06-XX · ARCHITECTURE · Library abstraction allows users to work across 2D and 3D
+    without switching mental models — selecting Three.js, P5, or C2 feels like
+    choosing a creative medium, not configuring technical options. The unified
+    figure management interface maintains consistency regardless of underlying library.
+
+2026-06-XX · UX · Layer-based figure management treats individual elements as
+    composable units — visibility toggles, reordering, and duplication operations
+    apply to individual figures, enabling iterative composition workflows.
+
+2026-06-XX · REFUSAL · Generic 3D model picker UIs rejected in favor of
+    framework-agnostic figure abstraction — maintaining the atelier workstation
+    metaphor requires that library-specific complexity remain hidden behind
+    consistent creative controls.
 
 ---
 

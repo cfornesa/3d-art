@@ -1,15 +1,16 @@
-# Creatrweb Data Art
+# Creatrweb 3D Art
 
-A personal data art workstation for transforming datasets into generative art. Upload CSVs, TSVs, or XLSX files, map columns to visual dimensions, choose from 13 rendering styles, and compose unique artwork. This was a partnership with myself (the human) and AI (Opencode Go and Vibe CLI) using the <a href="https://github.com/cfornesa/creatrweb">Creatrweb framework</a>.
+A multi-library art generation studio for creating 2D and 3D artwork using Three.js, P5.js, and C2. Each artwork uses one rendering library and can compose up to 40 figures with layer-based controls. This is a retrofit of the original Creatrweb Data Art application, repurposed as a direct-creation tool for generative art.
 
 ## Project Overview
 
-**Creatrweb Data Art** is a two-phase project:
+**Creatrweb 3D Art** is a single-phase creative workstation:
 
-- **Phase 1** — Core Workstation: Data ingest (CSV/TSV/XLSX), HTML5 Canvas renderer with 13 art styles, full creative controls, PNG export.
-- **Phase 2** — Accounts, Save & Share: User authentication, persistent artwork storage, public gallery.
-
-Currently Phase 1 is complete with Phase 2 features partially implemented (auth system in place, save/load working, portfolio and exhibit pages built).
+- Select a rendering library (Three.js, P5.js, or C2) per artwork
+- Create and manage up to 40 figures per piece with layer-based controls
+- Configure figure properties, visibility, ordering, and duplication
+- Save artwork configurations with thumbnail generation
+- Share artworks via embeddable iframes that re-render from configuration
 
 ---
 
@@ -17,7 +18,7 @@ Currently Phase 1 is complete with Phase 2 features partially implemented (auth 
 
 | Layer | Technology |
 |---|---|
-| Frontend | HTML, CSS, JavaScript (HTML5 Canvas API) |
+| Frontend | HTML, CSS, JavaScript, Three.js, P5.js, C2 |
 | Backend | PHP |
 | Database | MySQL |
 | Build Tools | None required |
@@ -32,7 +33,6 @@ Currently Phase 1 is complete with Phase 2 features partially implemented (auth 
 ├── studio.php             # Protected art creation workspace
 ├── portfolio.php          # Public gallery of all public artworks
 ├── exhibit.php            # Single artwork view with embed code
-├── data.php               # Dataset management (upload/delete)
 ├── login.php              # Standalone login page
 │
 ├── api/
@@ -42,39 +42,20 @@ Currently Phase 1 is complete with Phase 2 features partially implemented (auth 
 │   │   ├── register.php  # POST — registration (disabled for single-owner)
 │   │   └── session.php   # GET — current session state
 │   ├── artworks.php       # GET — public artwork collection with filters
-│   ├── artwork.php        # GET/POST/PATCH/DELETE — single artwork CRUD
-│   ├── datasets.php       # GET/POST/DELETE — dataset management
-│   ├── upload.php         # POST — file upload with sanitization
-│   └── apiFeeds.php      # GET — API feed caching
+│   └── artwork.php        # GET/POST/PATCH/DELETE — single artwork CRUD
 │
 ├── src/
 │   ├── app.js             # Main entry point, orchestrates all modules
-│   ├── data-manager.js     # Dataset CRUD UI logic
-│   ├── data/
-│   │   ├── normalizer.js  # Column type detection (number/date/boolean/string)
-│   │   └── dataMapper.js  # Data cleaning and row filtering
-│   ├── canvas/
-│   │   ├── renderer.js     # Canvas rendering orchestrator
-│   │   ├── artStyles.js    # Style registry (13 styles)
-│   │   └── styles/
-│   │       ├── particleField.js
-│   │       ├── geometricGrid.js
-│   │       ├── flowingCurves.js
-│   │       ├── radialWave.js
-│   │       ├── fractalDust.js
-│   │       ├── neuralFlow.js
-│   │       ├── pixelMosaic.js
-│   │       ├── voronoiCells.js
-│   │       ├── radialSymmetry.js
-│   │       ├── timeSeries.js
-│   │       ├── heatMap.js
-│   │       ├── scatterMatrix.js
-│   │       └── barCode.js
+│   ├── libraries/
+│   │   ├── three.js        # Three.js rendering engine and figure types
+│   │   ├── p5.js           # P5.js rendering engine and figure types
+│   │   └── c2.js           # C2 rendering engine and figure types
+│   ├── figures/
+│   │   ├── figure-manager.js  # Core figure CRUD and layer management
+│   │   └── figure-base.js   # Base figure properties and common interface
 │   └── controls/
-│       ├── controls.js       # Main controls orchestrator
-│       ├── columnMapper.js  # Dataset column → visual dimension mapping
-│       ├── palettePicker.js  # Color palette selection
-│       └── visualDimensions.js  # Manual mode sliders (X/Y/Size/Opacity/Rotation)
+│       ├── controls.js    # Main controls orchestrator
+│       └── palettePicker.js  # Color palette selection
 │
 ├── css/
 │   └── app.css            # Main stylesheet (dark atelier palette)
@@ -87,7 +68,6 @@ Currently Phase 1 is complete with Phase 2 features partially implemented (auth 
 ├── db/
 │   └── schema.sql         # Complete MySQL schema + seed data
 │
-├── uploads/               # User-uploaded data files
 └── public/assets/thumbnails/  # Generated artwork thumbnail PNGs
 ```
 
@@ -98,47 +78,53 @@ Currently Phase 1 is complete with Phase 2 features partially implemented (auth 
 | Route | Access | Purpose |
 |---|---|---|
 | `/` | Public | Landing page with featured artworks |
-| `/studio.php` | Auth only | Art creation workspace with canvas + controls |
+| `/studio.php` | Auth only | Art creation workspace with library selector + figure controls |
 | `/portfolio.php` | Public | Gallery of all public artworks |
 | `/exhibit.php?id=N` | Public | Single artwork view with iframe embed code |
-| `/data.php` | Auth only | Dataset upload and management |
 | `/login.php` | Guest only | Standalone login page |
 
 ---
 
 ## Database Schema
 
-Six tables in MySQL:
+Three tables in MySQL:
 
 1. **users** — Account credentials (id, username, email, password_hash, is_active)
-2. **datasets** — Normalized datasets with sanitization status tracking (id, user_id, source_type, source_name, storage_path, row_count, is_sanitized)
-3. **dataset_columns** — Column metadata per dataset (id, dataset_id, column_name, data_type, sample_values)
-4. **art_styles** — Enumerated rendering modes (id, style_key, display_name, default_config)
-5. **artworks** — Saved artwork state (id, user_id, dataset_id, art_style_id, title, column_mapping, palette_config, rendering_config, mode, visual_dimensions, tags, is_public, is_featured, thumbnail_path)
-6. **api_cache** — Cached API feed responses with TTL (id, source_url, response_data, expires_at)
+2. **artworks** — Saved artwork state (id, user_id, title, library, figures, palette_config, tags, is_public, is_featured, thumbnail_path, created_at, updated_at)
+3. **api_cache** — Cached API feed responses with TTL (id, source_url, response_data, expires_at)
+
+**Note:** The `figures` column stores a JSON array of figure configurations. Each figure includes library-specific properties for position, scale, rotation, color, and visibility.
 
 ---
 
 ## Core Features
 
-### Data Ingest Pipeline
-- Upload CSV, TSV, or XLSX files (UUID-based filenames, server-side MIME validation)
-- Column type inference: string → number → date → boolean priority
-- C-04 compliant sanitization before any processing
+### Library Selection
+- Choose from three rendering libraries: Three.js, P5.js, or C2
+- Each artwork uses exactly one library
+- Library auto-selected when loading existing artwork
+- Common figure management interface across all libraries
+
+### Figure Management
+- Create, edit, and delete figures (up to 40 per artwork)
+- Layer-based controls: show/hide, reorder (drag or buttons), duplicate
+- Per-figure property editor with library-specific options
+- Figure count indicator (X/40)
+- Common base properties: position, scale, rotation, color, visibility
 
 ### Art Rendering
-- 13 distinct art styles (Particle Field, Geometric Grid, Flowing Curves, Radial Wave, Fractal Dust, Neural Flow, Pixel Mosaic, Voronoi Cells, Radial Symmetry, Time Series, Heat Map, Scatter Matrix, Bar Code)
-- Hybrid mode architecture:
-  - **Data-Driven Mode**: Map dataset columns to visual dimensions (X, Y, Size, Color, Opacity, Rotation)
-  - **Manual Mode**: Set explicit numeric values via sliders (X, Y, Size, Opacity, Rotation) — palette colors only
-- PNG export via `canvas.toBlob()`
+- Each library provides its own figure types and rendering capabilities
+- Three.js: 3D graphics with WebGL
+- P5.js: 2D graphics and creative coding
+- C2: 2D canvas rendering
+- Thumbnail generation for gallery display
 
 ### Save & Share
-- Save artwork state (POST creates, PATCH updates)
-- Thumbnail generation on both create and update
+- Save artwork configuration (library, figures, palette, tags)
+- Thumbnail generation on create and update for index/portfolio display
 - Public/Featured visibility flags
-- Tags support (VARCHAR comma-separated)
-- iFrame embed code for external display
+- Tags support (comma-separated)
+- iFrame embed code that re-renders artwork from configuration
 
 ---
 
@@ -171,9 +157,9 @@ Key configuration constants (defined in `config/env.php`):
 - `APP_DEBUG` — enable detailed error output
 - `APP_URL` — public URL of the application
 - `DB_*` — database connection parameters
-- `UPLOAD_*` — upload size limits and allowed extensions
 - `SESSION_*` — session name and lifetime
 - `ARTWORK_THUMBNAIL_DIR` / `ARTWORK_THUMBNAIL_URL` — thumbnail storage
+- `MAX_FIGURES` — maximum figures per artwork (default: 40)
 
 ---
 
@@ -183,7 +169,7 @@ Key configuration constants (defined in `config/env.php`):
 2. Copy `env.example` to `.env` and configure database credentials
 3. Create the MySQL database and run `db/schema.sql`
 4. Point your web server document root to the project root
-5. Configure write permissions: `chmod 755 uploads public/assets/thumbnails`
+5. Configure write permissions: `chmod 755 public/assets/thumbnails`
 
 ---
 
@@ -206,11 +192,6 @@ Single-owner mode: public registration is disabled. Users must be manually creat
 | `/api/artwork.php` | PATCH | Yes | Update artwork |
 | `/api/artwork.php` | DELETE | Yes | Delete artwork |
 | `/api/artworks.php` | GET | No | List artworks (filter: featured/public) |
-| `/api/datasets.php` | GET | Yes | List user's datasets |
-| `/api/datasets.php` | POST | Yes | Create dataset record |
-| `/api/datasets.php` | DELETE | Yes | Delete dataset |
-| `/api/upload.php` | POST | Yes | Upload file |
-| `/api/apiFeeds.php` | GET | No | Fetch/cached API feed |
 
 ---
 
@@ -220,8 +201,8 @@ Key non-negotiable rules (see `CONSTRAINTS.md`):
 
 - **C-01**: No external font network requests — system-UI stack only
 - **C-02**: No gradients, soft shadows, or SaaS visual language on UI surfaces
-- **C-04**: All uploaded files must be sanitized server-side before processing
-- **C-11**: Artwork mode and visual dimensions must persist across save/load cycles
-- **C-12**: Style ID ↔ styleKey mapping must be complete (all 13 styles)
-- **C-13**: Manual mode must generate ≥30 data points for meaningful output
-- **C-17**: Manual mode dimensions must normalize to 0-1 range matching data-driven contract
+- **C-03**: Canvas output is exempt from visual constraints (user-generated content)
+- **C-23**: Maximum 40 figures per artwork — hard limit
+- **C-24**: Each artwork uses exactly one rendering library
+- **C-25**: Embedded artworks must re-render from configuration on each view
+- **C-26**: Thumbnails used for display only (index/portfolio) — not for embeds

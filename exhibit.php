@@ -1,18 +1,19 @@
 <?php
 /**
- * Creatrweb Data Art — Exhibit Page
+ * Creatrweb 3D Art — Exhibit Page
  *
  * Public view for a single artwork.
  * Route: /exhibit.php?id=ARTWORK_ID
  *
  * Shows:
  *   - Title, description, tags, created date
- *   - Hero visual (thumbnail for now)
+ *   - Hero visual (thumbnail for gallery display only)
  *   - Embed code snippet
  *
  * Behavior:
  *   - Only shows exhibits for artworks where is_public = 1
  *   - For non-existent or private IDs: show "Not found or not public"
+ *   - Embeds re-render from configuration on each view (no thumbnails)
  */
 
 require_once __DIR__ . '/config/bootstrap.php';
@@ -43,19 +44,15 @@ try {
     if ($currentUserId !== null) {
         // Authenticated: can see own private + any public
         $stmt = $pdo->prepare('
-            SELECT a.*, s.display_name AS art_style_name, s.style_key
-            FROM artworks a
-            JOIN art_styles s ON a.art_style_id = s.id
-            WHERE a.id = :id AND (a.is_public = 1 OR a.user_id = :user_id)
+            SELECT * FROM artworks
+            WHERE `id` = :id AND (`is_public` = 1 OR `user_id` = :user_id)
         ');
         $stmt->execute([':id' => $artworkId, ':user_id' => $currentUserId]);
     } else {
         // Unauthenticated: only public artworks
         $stmt = $pdo->prepare('
-            SELECT a.*, s.display_name AS art_style_name, s.style_key
-            FROM artworks a
-            JOIN art_styles s ON a.art_style_id = s.id
-            WHERE a.id = :id AND a.is_public = 1
+            SELECT * FROM artworks
+            WHERE `id` = :id AND `is_public` = 1
         ');
         $stmt->execute([':id' => $artworkId]);
     }
@@ -63,9 +60,12 @@ try {
     $artwork = $stmt->fetch();
 
     if ($artwork) {
-        // Decode JSON fields
+        // Decode JSON fields for new architecture
+        $artwork['figures']       = json_decode($artwork['figures'], true);
+        $artwork['palette_config'] = json_decode($artwork['palette_config'], true);
+        $artwork['library_config'] = json_decode($artwork['library_config'], true);
+        // Legacy fields (may be null for new artworks)
         $artwork['column_mapping']   = json_decode($artwork['column_mapping'], true);
-        $artwork['palette_config']   = json_decode($artwork['palette_config'], true);
         $artwork['rendering_config'] = json_decode($artwork['rendering_config'], true);
     }
 
@@ -89,7 +89,7 @@ if (!empty($artwork['updated_at'])) {
     $embedUrl .= '&v=' . strtotime($artwork['updated_at']);
 }
 
-// If embed mode, output minimal HTML with just the artwork
+// If embed mode, output minimal HTML with config-based re-rendering
 if ($isEmbed) {
     header('Content-Type: text/html');
     header('Cache-Control: no-cache, must-revalidate');
@@ -99,20 +99,147 @@ if ($isEmbed) {
     $title = htmlspecialchars(!empty($artwork['title']) ? $artwork['title'] : 'Untitled');
     $altText = htmlspecialchars(!empty($artwork['title']) ? $artwork['title'] : 'Artwork');
     
-    // Minimal HTML for embed - just the artwork
-    echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>' . $title . '</title><style>body,html{margin:0;padding:0;height:100%;background:#0d0d0d;display:flex;align-items:center;justify-content:center;overflow:hidden}img{max-width:100%;max-height:100%;display:block;object-fit:contain}</style></head><body>';
+    // For re-rendering from config, we need to encode the artwork configuration
+    $config = array(
+        'library' => !empty($artwork['library']) ? $artwork['library'] : 'three',
+        'figures' => !empty($artwork['figures']) ? $artwork['figures'] : array(),
+        'palette_config' => !empty($artwork['palette_config']) ? $artwork['palette_config'] : (object)array(),
+        'library_config' => !empty($artwork['library_config']) ? $artwork['library_config'] : (object)array()
+    );
     
-    if (!empty($artwork['thumbnail_path'])) {
-        $thumbUrl = htmlspecialchars(ARTWORK_THUMBNAIL_URL . $artwork['thumbnail_path']);
-        $fullPath = ARTWORK_THUMBNAIL_DIR . $artwork['thumbnail_path'];
-        if (file_exists($fullPath)) {
-            echo '<img src="' . $thumbUrl . '" alt="' . $altText . '">';
-        } else {
-            echo '<div style="color:#555;font-family:monospace;font-size:14px;padding:32px;">' . htmlspecialchars($fullPath) . ' NOT FOUND</div>';
-        }
-    } else {
-        echo '<div style="color:#555;font-family:monospace;font-size:14px;padding:32px;">No thumbnail available</div>';
-    }
+    $jsonConfig = htmlspecialchars(json_encode($config), ENT_QUOTES, 'UTF-8');
+    
+    // Minimal HTML for embed - re-render from configuration
+    echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>' . $title . '</title><style>';
+    echo 'body,html{margin:0;padding:0;height:100%;background:#0d0d0d;display:flex;align-items:center;justify-content:center;overflow:hidden}';
+    echo '#dta-embed-canvas{width:100%;height:100%;background:#0d0d0d;}a-scene{width:100%;height:100%;}';
+    echo '#dta-embed-error{color:#ff6b6b;font-family:system-ui;font-size:14px;padding:24px;text-align:center;}';
+    echo '#dta-embed-loading{color:#8a8580;font-family:system-ui;font-size:14px;padding:24px;text-align:center;}';
+    echo '</style></head><body>';
+    echo '<div id="dta-embed-loading">Loading ' . $title . '...</div>';
+    echo '<div id="dta-embed-error" style="display:none;"></div>';
+    
+    // Container for canvas (varies by library)
+    echo '<div id="dta-embed-canvas"></div>';
+    
+    // Encode config for JavaScript
+    echo '<script>';
+    echo 'var DTA_EMBED_CONFIG = ' . json_encode($config) . ';';
+    echo '</script>';
+    
+    // Load required libraries based on artwork library
+    $library = !empty($artwork['library']) ? $artwork['library'] : 'three';
+    
+    // Always need FigureBase and FigureManager
+    echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>';
+    echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>';
+    
+    // Load Creatrweb 3D Art modules from relative paths
+    // Note: These assume exhibit.php is in the same directory as src/
+    echo '<script src="src/figures/figure-base.js"></script>';
+    echo '<script src="src/figures/figure-manager.js"></script>';
+    echo '<script src="src/libraries/three.js"></script>';
+    echo '<script src="src/libraries/p5.js"></script>';
+    echo '<script src="src/libraries/c2.js"></script>';
+    
+    // Embed renderer script
+    echo '<script>';
+    echo '(function() {';
+    echo '  "use strict";';
+    echo '  var config = DTA_EMBED_CONFIG;';
+    echo '  var library = config.library || "three";';
+    echo '  var figures = config.figures || [];';
+    echo '  var container = document.getElementById("dta-embed-canvas");';
+    echo '  var errorEl = document.getElementById("dta-embed-error");';
+    echo '  var loadingEl = document.getElementById("dta-embed-loading");';
+    echo '';
+    echo '  function showError(msg) {';
+    echo '    loadingEl.style.display = "none";';
+    echo '    errorEl.textContent = msg;';
+    echo '    errorEl.style.display = "block";';
+    echo '    console.error("Embed error:", msg);';
+    echo '  }';
+    echo '';
+    echo '  function hideLoading() {';
+    echo '    loadingEl.style.display = "none";';
+    echo '  }';
+    echo '';
+    echo '  // Wait for modules to load, then initialize';
+    echo '  function initEmbed() {';
+    echo '    try {';
+    echo '      if (!window.DataToArt || !window.DataToArt.FigureBase) {';
+    echo '        setTimeout(initEmbed, 100);';
+    echo '        return;';
+    echo '      }';
+    echo '';
+    echo '      // Create renderer based on library';
+    echo '      var RendererClass, canvasEl, renderer, options;';
+    echo '      switch(library) {';
+    echo '        case "three":';
+    echo '          RendererClass = window.DataToArt.ThreeRenderer;';
+    echo '          canvasEl = document.createElement("canvas");';
+    echo '          canvasEl.style.cssText = "width:100%;height:100%;";';
+    echo '          container.appendChild(canvasEl);';
+    echo '          options = { canvas: canvasEl };';
+    echo '          break;';
+    echo '        case "p5":';
+    echo '          RendererClass = window.DataToArt.P5Renderer;';
+    echo '          canvasEl = document.createElement("canvas");';
+    echo '          canvasEl.style.cssText = "width:100%;height:100%;";';
+    echo '          container.appendChild(canvasEl);';
+    echo '          options = { canvas: canvasEl };';
+    echo '          break;';
+    echo '        case "c2":';
+    echo '          RendererClass = window.DataToArt.C2Renderer;';
+    echo '          canvasEl = document.createElement("canvas");';
+    echo '          canvasEl.style.cssText = "width:100%;height:100%;";';
+    echo '          container.appendChild(canvasEl);';
+    echo '          options = { canvas: canvasEl };';
+    echo '          break;';
+    echo '        default:';
+    echo '          // Fallback to three.js for unknown libraries';
+    echo '          RendererClass = window.DataToArt.ThreeRenderer;';
+    echo '          canvasEl = document.createElement("canvas");';
+    echo '          canvasEl.style.cssText = "width:100%;height:100%;";';
+    echo '          container.appendChild(canvasEl);';
+    echo '          options = { canvas: canvasEl };';
+    echo '          break;';
+    echo '      }';
+    echo '';
+    echo '      if (!RendererClass) {';
+    echo '        showError("Renderer not available for library: " + library);';
+    echo '        return;';
+    echo '      }';
+    echo '';
+    echo '      try {';
+    echo '        renderer = new RendererClass(options);';
+    echo '        hideLoading();';
+    echo '';
+    echo '        // Set figures and render';
+    echo '        if (renderer.setFigures && Array.isArray(figures)) {';
+    echo '          renderer.setFigures(figures);';
+    echo '        }';
+    echo '        if (renderer.render) {';
+    echo '          renderer.render();';
+    echo '        }';
+    echo '      } catch(e) {';
+    echo '        showError("Failed to initialize renderer: " + e.message);';
+    echo '      }';
+    echo '    } catch(e) {';
+    echo '      showError("Error: " + e.message);';
+    echo '    }';
+    echo '  }';
+    echo '';
+    echo '  // Start initialization';
+    echo '  if (document.readyState === "complete" || document.readyState === "interactive") {';
+    echo '    setTimeout(initEmbed, 500);';
+    echo '  } else {';
+    echo '    document.addEventListener("DOMContentLoaded", function() {';
+    echo '      setTimeout(initEmbed, 500);';
+    echo '    });';
+    echo '  }';
+    echo '})();';
+    echo '</script>';
     
     echo '</body></html>';
     exit;
@@ -130,7 +257,7 @@ header('Expires: 0');
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><?php echo htmlspecialchars($artwork ? (!empty($artwork['title']) ? $artwork['title'] : 'Untitled') : 'Not Found'); ?> — Creatrweb Data Art</title>
+  <title><?php echo htmlspecialchars($artwork ? (!empty($artwork['title']) ? $artwork['title'] : 'Untitled') : 'Not Found'); ?> — Creatrweb 3D Art</title>
   <link rel="stylesheet" href="css/app.css">
   <meta name="description" content="<?php echo htmlspecialchars($artwork ? (!empty($artwork['description']) ? $artwork['description'] : '') : 'Artwork not found'); ?>">
   <style>
@@ -349,10 +476,16 @@ header('Expires: 0');
             <strong>Created:</strong>
             <span><?php echo htmlspecialchars(date('M j, Y, g:i a', strtotime($artwork['created_at']))); ?></span>
           </div>
-          <?php if ($artwork['art_style_name']): ?>
+          <?php if (!empty($artwork['library'])): ?>
           <div class="dta-exhibit-meta-item">
-            <strong>Style:</strong>
-            <span><?php echo htmlspecialchars($artwork['art_style_name']); ?></span>
+            <strong>Library:</strong>
+            <span><?php echo htmlspecialchars(ucfirst($artwork['library'])); ?></span>
+          </div>
+          <?php endif; ?>
+          <?php if (!empty($artwork['figures']) && is_array($artwork['figures'])): ?>
+          <div class="dta-exhibit-meta-item">
+            <strong>Figures:</strong>
+            <span><?php echo count($artwork['figures']); ?></span>
           </div>
           <?php endif; ?>
           <?php if ($artwork['tags']): ?>
@@ -379,7 +512,7 @@ header('Expires: 0');
   </main>
 
   <footer id="dta-exhibit-footer">
-    <p>Creatrweb Data Art: My data art workstation. Copyright (c) <?php echo date('Y'); ?> <a href="https://creatrweb.com" style="color:#606060;" target="_blank">Fornesus</a>.</p>
+    <p>Creatrweb 3D Art: Multi-library art generation studio. Copyright (c) <?php echo date('Y'); ?> <a href="https://creatrweb.com" style="color:#606060;" target="_blank">Fornesus</a>.</p>
     <p>Developed with open-source AI tools and models: Vibe CLI, Kilo Code, Opencode Go.</p>
     <p><a href="portfolio.php" style="color:#606060;">View all public artworks</a>.</p>
   </footer>
@@ -389,7 +522,7 @@ header('Expires: 0');
   <main id="dta-exhibit-not-found">
     <h1>Not Found or Not Public</h1>
     <p>The requested artwork does not exist or is not publicly accessible.</p>
-    <p><a href="/portfolio.php">← Back to Portfolio</a> | <a href="/">← Back to Home</a></p>
+    <p><a href="/portfolio.php">← Back to Portfolio</a> | <a href="/index.php">← Back to Home</a></p>
   </main>
 
   <?php endif; ?>

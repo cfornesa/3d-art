@@ -1,6 +1,6 @@
 <?php
 /**
- * Creatrweb Data Art — Portfolio Page
+ * Creatrweb 3D Art — Portfolio Page
  *
  * Public page showing all public artworks, with featured pieces first.
  * Route: /portfolio.php
@@ -22,7 +22,7 @@ $current_page = 'portfolio';
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Portfolio — Creatrweb Data Art</title>
+  <title>Portfolio — Creatrweb 3D Art</title>
   <link rel="stylesheet" href="css/app.css">
   <script>
     var DTA_CONFIG = {
@@ -186,14 +186,13 @@ $current_page = 'portfolio';
   <!-- Header with Navigation -->
   <header id="dta-header">
     <div class="dta-header-title">
-      <h1><a href="/index.php">Creatrweb Data Art</a></h1>
+      <h1><a href="/index.php">Creatrweb 3D Art</a></h1>
       <button class="dta-hamburger" onclick="toggleMobileNav()" aria-label="Menu">☰</button>
     </div>
     <nav class="dta-nav">
       <a href="index.php">Home</a>
       <?php if (is_authenticated()): ?>
         <a href="studio.php">Studio</a>
-        <a href="data.php">Data</a>
         <a href="portfolio.php" class="active">Portfolio</a>
         <a href="#" onclick="event.preventDefault(); logout(); toggleMobileNav();" class="dta-nav-logout">Log Out</a>
       <?php else: ?>
@@ -204,7 +203,6 @@ $current_page = 'portfolio';
       <a href="index.php">Home</a>
       <?php if (is_authenticated()): ?>
         <a href="studio.php">Studio</a>
-        <a href="data.php">Data</a>
         <a href="portfolio.php" class="active">Portfolio</a>
         <a href="#" onclick="event.preventDefault(); logout(); toggleMobileNav();" class="dta-nav-logout">Log Out</a>
       <?php else: ?>
@@ -227,7 +225,7 @@ $current_page = 'portfolio';
   </main>
 
   <footer id="dta-portfolio-footer">
-    <p>Creatrweb Data Art: My data art workstation. Copyright (c) <?php echo date('Y'); ?> <a href="https://creatrweb.com" style="color:#606060;" target="_blank">Fornesus</a>.</p>
+    <p>Creatrweb 3D Art: Multi-library art generation studio. Copyright (c) <?php echo date('Y'); ?> <a href="https://creatrweb.com" style="color:#606060;" target="_blank">Fornesus</a>.</p>
     <p>Developed with open-source AI tools and models: Vibe CLI, Kilo Code, Opencode Go.</p>
     <p><a href="index.php" style="color:#606060;">Back to Home</a>.</p>
   </footer>
