@@ -78,8 +78,47 @@
         const axesHelper = new THREE.AxesHelper(3);
         this._scene.add(axesHelper);
 
+        // Initialize OrbitControls for interactivity
+        this._initOrbitControls();
+
         // Handle resize
         window.addEventListener('resize', this._onResize.bind(this));
+    };
+
+    /**
+     * Initialize OrbitControls for camera interaction
+     * Lazy-loads OrbitControls.js if not already available
+     */
+    ThreeRenderer.prototype._initOrbitControls = function() {
+        // Check if OrbitControls is already available (loaded via CDN or self-hosted)
+        if (typeof THREE.OrbitControls !== 'undefined') {
+            this._controls = new THREE.OrbitControls(this._camera, this._renderer.domElement);
+            this._controls.enableDamping = true;
+            this._controls.dampingFactor = 0.05;
+            this._controls.screenSpacePanning = false;
+            this._controls.minDistance = 1;
+            this._controls.maxDistance = 100;
+        } else {
+            // Lazy-load self-hosted OrbitControls from vendor directory
+            this._loadOrbitControls();
+        }
+    };
+
+    /**
+     * Dynamically load OrbitControls from self-hosted file
+     */
+    ThreeRenderer.prototype._loadOrbitControls = function() {
+        var self = this;
+        var script = document.createElement('script');
+        script.src = '/src/vendor/three/OrbitControls.js';
+        script.onload = function() {
+            // OrbitControls should now be available on THREE namespace
+            self._initOrbitControls();
+        };
+        script.onerror = function() {
+            console.warn('[ThreeRenderer] Failed to load OrbitControls from src/vendor/three/OrbitControls.js');
+        };
+        document.head.appendChild(script);
     };
 
     /**
@@ -395,6 +434,11 @@
      */
     ThreeRenderer.prototype._animate = function() {
         this._animationId = requestAnimationFrame(this._animate.bind(this));
+        
+        // Update OrbitControls if available (required for damping)
+        if (this._controls) {
+            this._controls.update();
+        }
         
         if (this._needsRender) {
             this._needsRender = false;

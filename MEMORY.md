@@ -184,6 +184,22 @@
 
 2026-06-XX · ARCHITECTURE · Common interface methods must respect all parameters — when `captureThumbnail(width, height)` ignored dimensions, P5.js and C2 produced oversized thumbnails while Three.js correctly resized, causing inconsistent thumbnail display in gallery.
 
+2026-06-XX · ARCHITECTURE · Embed mode script paths must use absolute paths (/src/...) not relative (src/...) — relative paths break when embed.php is loaded from subdirectories or iframes, causing infinite "Loading..." state as dependencies never resolve.
+
+2026-06-XX · ARCHITECTURE · Three.js exhibit views must include camera controls (OrbitControls) — user explicitly requires interactive 3D exploration in all contexts (studio, exhibit regular, embed). Lazy-loading from self-hosted src/vendor/three/OrbitControls.js ensures compatibility across all Three.js loading patterns.
+
+2026-06-XX · ARCHITECTURE · Exhibit.php must re-render artwork from configuration, not display thumbnails — per C-25 and C-26, thumbnails are for gallery pages only. Canvas rendering in exhibit provides live, potentially interactive artwork viewing.
+
+2026-06-XX · ARCHITECTURE · Lazy-loaded scripts must use absolute paths even as fallback — relative paths in dynamic script loading (e.g., via document.createElement('script')) resolve relative to the current page, not the script's location, causing failures in iframe/subdirectory contexts. Always use leading slash for vendor scripts.
+
+2026-06-XX · DEBUGGING · When a subsystem has multiple loading paths (proactive include vs lazy fallback), missing resources in one path can silently defeat the other — exhibit.php embed mode missed OrbitControls inclusion, and three.js lazy loading used relative path, compounding the failure. Fix: ensure both paths work independently.
+
+2026-06-XX · SECURITY · JSON data embedded in JavaScript inside `<script>` tags must use JSON_HEX_TAG flag to prevent `</script>` in data from prematurely closing the script tag. Using `json_encode($data, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP)` ensures all HTML-sensitive characters are hex-escaped, preventing XSS and syntax errors.
+
+2026-06-XX · BROWSER · Canvas elements require `pointer-events: auto` CSS for mouse/touch interaction to work. Without this, canvas appears visible but ignores all pointer input. This is particularly important for Three.js with OrbitControls and any interactive canvas rendering.
+
+2026-06-XX · UX · Embed mode loading/error message elements should be hidden by default (`display: none`) and only shown explicitly when errors occur. The primary content (canvas) should be visible immediately, with loading states as overlays, not blocking the layout.
+
 *Full removed entries available in git history or docs/archive/ if needed.*
 
 ---

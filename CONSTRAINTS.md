@@ -375,3 +375,39 @@ The following constraints were lifted or superseded by the architectural pivot f
 **SCOPE:** All library renderer methods that modify canvas/renderer size, particularly `captureThumbnail()` implementations.
 
 **SET:** Session 32 — Three.js `captureThumbnail()` called `setSize()` with default `updateStyle=true`, which overwrote canvas inline styles with device-pixel dimensions instead of CSS-pixel dimensions, causing 2x zoom effect and mispositioned display.
+
+---
+
+### C-32 · Exhibit Display Mode
+
+**CONSTRAINT:** exhibit.php (both regular and embed modes) must re-render artwork from configuration using live canvas rendering. Thumbnails are for gallery display only (index.php, portfolio.php) per C-25 and C-26.
+
+**RATIONALE:** User explicitly requires exhibit pages to show interactive/rendered artwork, not static thumbnails. This distinguishes exhibit pages (single artwork focus) from gallery pages (multiple artwork thumbnails).
+
+**SCOPE:** exhibit.php, all library renderers
+
+**SET:** User clarification that exhibit.php should render canvas, not thumbnails
+
+---
+
+### C-33 · Absolute Script Paths for Embed Mode
+
+**CONSTRAINT:** All script references in embed mode output must use absolute paths (starting with `/`) to ensure correct loading regardless of the embedding context URL.
+
+**RATIONALE:** Embed mode iframes can be loaded from any URL path. Relative script paths (`src/...`) resolve relative to the current page URL, causing 404 errors and failed module loading when accessed from subdirectories or external sites. Previously caused infinite "Loading..." state due to scripts never loading.
+
+**SCOPE:** exhibit.php embed mode script tag generation, any inline script generation
+
+**SET:** Session 33 — Root cause of embed mode showing only "Loading..." text
+
+---
+
+### C-34 · Three.js Interactivity Requirement
+
+**CONSTRAINT:** Three.js artwork displayed in any rendering context (studio.php, exhibit.php regular mode, exhibit.php embed mode) must support user camera interaction including orbit (rotation), pan, and zoom operations.
+
+**RATIONALE:** User explicitly requires: "Pieces in embed mode must also be interactive so that, whenever a user on a website where a piece is embedded sees the Three.js piece, they may also interact with it." 3D artwork viewing requires user control over viewpoint for full art exploration.
+
+**SCOPE:** src/libraries/three.js, src/vendor/three/OrbitControls.js
+
+**SET:** Session 33 — User explicit requirement for interactive Three.js in all modes

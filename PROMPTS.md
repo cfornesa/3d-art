@@ -100,6 +100,48 @@
 
 ---
 
+## Prompt 18: Session 35 - Fix JSON Injection, Pointer Events, Loading Display (2026-06-XX)
+
+- **Primary Goal:** Complete remaining issues preventing embed mode from rendering and OrbitControls from working
+- **Details:** After Session 34 fixes, syntax error persists (Unexpected end of input at line 1:5327), OrbitControls not loading, embed shows "Loading Figured Out..." instead of canvas. User clarifies embed mode should show JUST the canvas without webpage framing.
+- **Scope:** Fix JSON encoding in regular exhibit mode, add pointer-events CSS to all canvas elements, hide loading/error divs by default in embed mode, ensure SVG/canvas elements accept pointer interaction
+- **Success:**
+  - `/exhibit.php?id=5&embed=true` renders canvas without loading message
+  - OrbitControls works when Three.js pieces load
+  - Canvas accepts mouse/touch interaction in all modes
+  - No console errors in any mode
+  - Embed mode displays clean canvas without page framing
+
+---
+
+## Prompt 17: Session 34 - Three.js Interactivity and Embed Mode Completion (2026-06-XX)
+
+- **Primary Goal:** Complete interactivity fixes for Three.js across all contexts and resolve embed mode loading
+- **Details:** After Session 33 fixes, Three.js pieces still not interactive in exhibit.php (regular and embed modes) and studio.php. Embed mode still shows "Loading..." text instead of rendering. Root causes: (1) Embed mode in exhibit.php missing OrbitControls.js script include, (2) three.js lazy loading uses relative path `src/vendor/three/OrbitControls.js` which fails in iframe/subdirectory contexts, (3) studio.php missing OrbitControls script tag entirely.
+- **Scope:** Add OrbitControls to embed mode script list, fix lazy loading path to absolute `/src/vendor/three/OrbitControls.js`, add OrbitControls to studio.php
+- **Success:**
+  - `/exhibit.php?id=5&embed=true` renders canvas (not "Loading...")
+  - `/exhibit.php?id=5` shows interactive Three.js canvas with OrbitControls
+  - `/studio.php` with Three.js has interactive camera controls
+  - No console errors about OrbitControls in any mode
+
+---
+
+## Prompt 16: Session 33 - Exhibit.php Canvas Rendering, Embed Loading, and Three.js Interactivity (2026-06-XX)
+
+- **Primary Goal:** Fix exhibit.php to render live canvas (not thumbnails), fix embed mode loading, add Three.js camera interactivity
+- **Details:** exhibit.php regular mode shows thumbnails instead of rendering. Embed mode (exhibit.php?embed=true) shows "Loading..." infinitely. Three.js pieces have no camera controls for user interaction. User explicitly requires: "Pieces in embed mode must also be interactive so that, whenever a user on a website where a piece is embedded sees the Three.js piece, they may also interact with it."
+- **Scope:** Fix embed mode script paths (relative→absolute), improve dependency polling, add canvas rendering to regular exhibit mode, add THREE.OrbitControls with lazy-loading from self-hosted src/vendor/three/OrbitControls.js
+- **Success:** 
+  - Embed mode loads and renders correctly (no "Loading..." stuck state)
+  - Regular exhibit.php shows live canvas, not thumbnail
+  - Three.js pieces have full camera controls (orbit, pan, zoom) in all modes
+  - All three libraries render in both regular and embed exhibit modes
+  - Script paths use absolute /src/... to prevent context issues
+  - Artwork configuration re-rendered on each exhibit view per C-25/C-26
+
+---
+
 ## Prompt 15: Session 32 - Thumbnail Generation Fix and Three.js Canvas Stabilization (2026-06-XX)
 
 - **Primary Goal:** Fix thumbnail generation pipeline and stabilize Three.js rendering

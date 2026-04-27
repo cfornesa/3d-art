@@ -18,7 +18,7 @@ A multi-library art generation studio for creating 2D and 3D artwork using Three
 
 | Layer | Technology |
 |---|---|
-| Frontend | HTML, CSS, JavaScript, Three.js, P5.js, C2 |
+| Frontend | HTML, CSS, JavaScript, Three.js (+OrbitControls), P5.js, C2 |
 | Backend | PHP |
 | Database | MySQL |
 | Build Tools | None required |
