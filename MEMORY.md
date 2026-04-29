@@ -213,7 +213,29 @@
     This caused "Unexpected end of input" syntax errors. Solution: use explicit \n in PHP echo statements
     to ensure proper JavaScript line breaks.]
 
+2026-04-28 · ARCHITECTURE · p5.js canvas access requires checking both wrapper and direct patterns — `p5Instance.canvas` may be a `p5.Renderer` wrapper (access via `.elt`) or an `HTMLCanvasElement` directly depending on p5.js version. Thumbnail capture must handle both patterns to work across versions.
+    [Context: P5.js thumbnail generation failed because captureThumbnail() assumed direct canvas access, but p5.js stores canvas as wrapper object with actual element at canvas.elt.]
+
+2026-04-28 · ARCHITECTURE · p5.js canvas resizing must use `resizeCanvas()` method, not direct width/height assignment — direct assignment updates the DOM element but not p5's internal state (p.width, p.height), causing draw functions to use stale dimensions for centering calculations.
+    [Context: Thumbnails were black/empty because draw() used container.clientWidth/Height for centering while canvas was resized to 200x200, causing figures to render outside visible area.]
+
+2026-04-28 · ARCHITECTURE · p5.js responsive rendering must use `p.width` and `p.height` properties, not container dimensions — container dimensions remain constant during thumbnail capture (200x200 canvas in 1052x874 container), but p.width/p.height reflect actual canvas size after resizeCanvas().
+    [Context: Centering calculation `p.translate(container.clientWidth/2, container.clientHeight/2)` produced wrong center when canvas was resized for thumbnail capture. Using `p.translate(p.width/2, p.height/2)` ensures correct centering at any canvas size.]
+
 *Full removed entries available in git history or docs/archive/ if needed.*
+
+2026-04-29 · ARCHITECTURE · Layer ordering convention: array index 0 = bottom/back,
+    higher indices = front. Ascending sort by layer value, new figures get max+1,
+    and swap operations move toward index 0 for "up" (front) and toward max index
+    for "down" (back).
+    [Figure Manager layer bug fix: moveUp/moveDown arrow inversion and new figure
+    layer assignment corrected]
+
+2026-04-29 · ARCHITECTURE · Layer bumping based on selection creates duplicate layer values and visual ordering bugs. Simplified approach: always place new figures at max layer + 1 (top of stack). Selection is for highlighting only, not insertion point.
+    [Session 39: createDefaultFigure() simplified to remove bumping logic]
+
+2026-04-29 · ARCHITECTURE · Three.js opacity rendering requires different material configurations for full vs semi-transparent: `transparent: false` for opacity === 1.0 (proper opaque depth handling), `transparent: true, depthWrite: false` for 0 < opacity < 1.0 (avoid "piercing" artifacts).
+    [Session 39: Three.js material rendering path selection based on opacity value]
 
 ---
 

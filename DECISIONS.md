@@ -17,6 +17,37 @@ Creatrweb 3D Art is a creative workstation where users select a rendering librar
 | Layer | Technology |
 |---
 
+## Session 38 — Figure Manager Layer System Bug Fixes (2026-04-29)
+
+**Problem:** Two bugs identified in `src/figures/figure-manager.js` layer management:
+1. **New figures get `layer: 0`** (bottom/back) instead of appearing at the top/front
+2. **`moveUp` and `moveDown` arrows are inverted** — "Up" moves figure visually down (toward back), "Down" moves figure visually up (toward front)
+
+### Root Cause Analysis
+- `_sortByLayer()` sorts **ascending** — lower layer value → lower array index → rendered first (back). This establishes the convention: **0 = bottom/back, higher = front**.
+- `_updateUI()` renders figures in **array index order** — the DOM list order IS the layer order.
+- `moveUp` swapped with `index + 1` (element below), which moves the figure toward higher index = toward back (wrong direction).
+- `moveDown` swapped with `index - 1` (element above), which moves the figure toward lower index = toward front (wrong direction).
+- `moveDown` boundary check was also inverted — checked `index <= 0` instead of `index >= this._figures.length - 1`.
+
+### Implementation
+
+| Location | Change | Rationale |
+|----------|--------|-----------|
+| `createDefaultFigure` | Calculate `maxLayer` via `reduce()`, assign `layer: maxLayer + 1` | New figures appear on top (front) of existing stack |
+| `moveUp` | Swap with `index - 1`, boundary check `index <= 0` | Moving "up" means toward front = lower array index |
+| `moveDown` | Swap with `index + 1`, boundary check `index >= length - 1` | Moving "down" means toward back = higher array index |
+| `_assignLayerIndices` | New helper: loops figures, sets `layer = i` | Ensures layer values always match array positions after any reorder |
+| `_sortByLayer` | Call `_assignLayerIndices()` after sort | Maintains consistency between layer values and array order |
+
+### Files Modified
+- `src/figures/figure-manager.js`: 4 methods updated (`createDefaultFigure`, `moveUp`, `moveDown`, `_sortByLayer`) + 1 new helper (`_assignLayerIndices`)
+
+### Assumption Surfaced (Rule 1)
+The assumption that `_figures` array order directly corresponds to visual layer order (index 0 = bottom/back, higher index = front), and that `_sortByLayer()` sorts by `layer` value in ascending order. This means "moving up" (to front) requires moving toward lower array indices, not higher ones.
+
+---
+
 ## Session 37 — Mobile Layout: Stack Configuration Panel Below Canvas (2026-04-27)
 
 **Problem:** In mobile view (≤768px), the configuration panel (`#dta-sidebar`) should stack below the canvas (`#dta-canvas-region`) with both at 100% width, matching the Data Art Application styling.
@@ -2660,6 +2691,77 @@ Per C-25 and C-26: Thumbnails are for gallery display only (index.php, portfolio
 
 ---
 
+## Session 38 — Fix P5.js Thumbnail Generation (2026-04-28)
+
+**Problem:** P5.js art pieces generate thumbnails, but they appear as empty black rectangles instead of showing the actual artwork.
+
+**Root Cause Analysis:**
+
+| Issue | Location | Problem |
+|-------|----------|---------|
+| Canvas resize method | `captureThumbnail()` | Using direct `canvas.width/height` assignment doesn't update p5's internal state |
+| Coordinate centering | `p.draw()` | Using `container.clientWidth/Height` for centering doesn't reflect resized canvas dimensions |
+
+When `captureThumbnail()` resized the canvas directly and called `redraw()`, the draw function was still using the container's dimensions (e.g., 1052x874) for centering, but the canvas was now 200x200. This caused figures to be drawn far outside the visible canvas area.
+
+### Fix Applied
+
+**1. Use `resizeCanvas()` instead of direct assignment:**
+```javascript
+// Before (wrong):
+canvas.width = width;
+canvas.height = height;
+
+// After (correct):
+this._p5Instance.resizeCanvas(width, height);
+```
+
+**2. Use p5's `width/height` properties for centering:**
+```javascript
+// Before (wrong):
+p.translate(container.clientWidth / 2, container.clientHeight / 2);
+
+// After (correct):
+p.translate(p.width / 2, p.height / 2);
+```
+
+**Files Modified:**
+- `src/libraries/p5.js` — `captureThumbnail()` now uses `resizeCanvas()` to properly update p5's internal state
+- `src/libraries/p5.js` — `p.draw()` now uses `p.width/2, p.height/2` for centering so it works at any canvas size
+- `src/app.js` — Added console logging to save flow for debugging
+
+### Comparison with Other Renderers
+
+| Renderer | Resize Method | Centering Approach | Status |
+|----------|--------------|-------------------|--------|
+| Three.js | `setSize(width, height, false)` | Camera positioning | ✅ Working |
+| C2 | Direct canvas resize + scale existing pixels | `ctx.translate(canvas.width/2, canvas.height/2)` | ✅ Working |
+| P5.js | `resizeCanvas()` | `p.translate(p.width/2, p.height/2)` | ✅ Fixed |
+
+### Debugging Added
+- `[P5] captureThumbnail: Canvas found, dimensions: WxH` — Confirms canvas detection
+- `[P5] captureThumbnail: Resized to WxH` — Confirms resizeCanvas() called
+- `[P5] captureThumbnail: Captured, data length: N` — Confirms data generation
+- `[P5] captureThumbnail: Restored to WxH` — Confirms restoration
+- `[App] Capturing thumbnail from renderer: {library}` — Tracks renderer selection
+- `[App] Thumbnail result: SUCCESS/EMPTY` — Shows capture result
+
+### Assumption Surfaced
+1. Direct canvas dimension manipulation works across all renderers — **INCORRECT**: P5.js requires `resizeCanvas()` to update internal state.
+2. Container dimensions match canvas dimensions — **INCORRECT**: When resizing for thumbnails, only canvas changes, not the container.
+3. p5's `width/height` properties automatically reflect canvas size — **CORRECT**: But only when using `resizeCanvas()`, not direct assignment.
+
+### Verification Checklist
+- [ ] Save P5.js artwork generates thumbnail with visible figures
+- [ ] Thumbnail shows centered artwork (not black/empty)
+- [ ] Gallery pages (index.php, portfolio.php) display P5.js thumbnails correctly
+- [ ] Three.js and C2 thumbnails continue to work correctly
+- [ ] Main canvas display is not corrupted after thumbnail capture
+- [ ] Browser console shows `[P5] captureThumbnail: Resized to 200 200`
+- [ ] Browser console shows `[P5] captureThumbnail: Restored to 1052 874` (or actual dimensions)
+
+---
+
 ## Session 37 — Fix exhibit.php embed Parameter to Hide Non-Visual Elements (2026-04-27)
 
 **Problem:** When visiting `exhibit.php?id=5&embed=true`, user expects ONLY the `#dta-exhibit-visual` element to be visible, hiding header, details, embed section, and footer.
@@ -2719,5 +2821,112 @@ Per C-25 and C-26: Thumbnails are for gallery display only (index.php, portfolio
 - Embed mode: `/exhibit.php?id=5&embed=true` shows only the canvas/visual element
 - Both modes: Canvas renders correctly and accepts interaction
 - No JavaScript syntax errors in console
+
+---
+
+## Session 39 — Fix Layer Ordering, Opacity 0, and Opacity 1.0 Rendering Bugs (2026-04-29)
+
+**Problem:** Three related bugs identified:
+1. **Layer ordering bug**: New figures placed below selected figure instead of above
+2. **Opacity 0 bug**: Figures with opacity=0 rendered at 100% opacity instead of being hidden
+3. **Opacity 0.9 vs 1.0 bug**: Opacity 1.0 objects "pierce through" transparent objects above them
+
+### Root Cause Analysis
+
+| Bug | Root Cause | Location |
+|-----|------------|----------|
+| Layer ordering | Bumping logic in `createDefaultFigure()` caused duplicate layer values. When layers [0,1,2] selected layer 1, bumping produced [0,2,3], new figure at layer 2 created duplicate with layer 2. | `src/figures/figure-manager.js:108-145` |
+| Opacity 0 | Used `<= 0` comparison which could hide objects unintentionally. Needed exact `=== 0` match. | `src/libraries/three.js:153`, `src/libraries/p5.js:183`, `src/libraries/c2.js:118` |
+| Opacity 1.0 vs 0.9 | Three.js used `transparent: true` for all opacity values. Opaque objects with `transparent: true, opacity: 1.0` render differently than `transparent: false`, causing depth buffer interaction issues. | `src/libraries/three.js:160-165`, `313-317` |
+
+### Implementation
+
+#### Fix 1: Simplify Layer Ordering (`src/figures/figure-manager.js`)
+
+**Assumption surfaced:** The bumping approach based on selection was overly complex and caused duplicate layer values. The simpler approach is to always place new figures at the top (max layer + 1).
+
+**Changes:**
+- Removed selection-based layer bumping logic entirely
+- Always calculate `maxLayer` via `reduce()` and assign `layer: maxLayer + 1`
+- Removed comment about "place above selected figure" — now "always place at top"
+
+```javascript
+// Simplified createDefaultFigure:
+const maxLayer = this._figures.reduce(function(max, f) {
+    return Math.max(max, f.layer || 0);
+}, -1);
+const newLayer = maxLayer + 1;
+```
+
+#### Fix 2: Opacity 0 Exact Comparison (All Renderers)
+
+**Changes:**
+- Three.js: Changed `finalOpacity <= 0` to `finalOpacity === 0` in both `_createObject()` and `_updateObject()`
+- P5.js: Changed `opacity <= 0` to `opacity === 0` in `_drawFigure()`
+- C2.js: Changed `opacity <= 0` to `opacity === 0` in `_drawFigure()`
+
+**Rationale:** Exact comparison prevents hiding objects that have very small but non-zero opacity values (e.g., 0.001) that should still be visible.
+
+#### Fix 3: Three.js Opacity Rendering Paths (`src/libraries/three.js`)
+
+**Assumption surfaced:** Three.js materials with `transparent: true, opacity: 1.0` have different depth buffer behavior than `transparent: false`. The edge case at exactly 1.0 requires special handling.
+
+**Option A (Clamp):** Clamp to [0.001, 0.999] to avoid exact 0 and 1 — REJECTED: doesn't use optimal rendering path for opaque objects
+**Option B (Different rendering paths):** Use `transparent: false` for opacity === 1.0, `transparent: true, depthWrite: false` for 0 < opacity < 1 — **SELECTED**
+
+**Changes:**
+```javascript
+// In _createObject() and _updateObject():
+const isFullyOpaque = finalOpacity === 1.0;
+const material = new THREE.MeshStandardMaterial({
+    color: color,
+    transparent: !isFullyOpaque,     // false for opacity 1.0, true otherwise
+    opacity: finalOpacity,
+    depthWrite: isFullyOpaque,       // true for opacity 1.0, false otherwise
+});
+```
+
+**Rationale:**
+- Opacity === 1.0: Use opaque rendering (`transparent: false`) — more efficient, proper depth write
+- 0 < Opacity < 1.0: Use transparent rendering (`transparent: true, depthWrite: false`) — avoids "piercing" artifacts
+- Opacity === 0: Skip object creation entirely (already handled by Fix 2)
+
+### Files Modified
+
+| File | Lines | Change |
+|------|-------|--------|
+| `src/figures/figure-manager.js` | 108-145 | Simplified `createDefaultFigure()` to always place at top |
+| `src/libraries/three.js` | 152-166 | Opacity === 0 check, different rendering paths for full vs semi-transparent |
+| `src/libraries/three.js` | 298-318 | Updated `_updateObject()` with same opacity logic |
+| `src/libraries/p5.js` | 182-183 | Changed `<= 0` to `=== 0` for opacity check |
+| `src/libraries/c2.js` | 117-118 | Changed `<= 0` to `=== 0` for opacity check |
+
+### Verification Steps
+
+1. Create Figure A (layer 0)
+2. Select Figure A, click "Add Figure" → Figure B should be at layer 1 (above A)
+3. Set Figure B opacity to 0 → should disappear completely
+4. Set Figure A opacity to 0.5, Figure B opacity to 1.0 → Both should render correctly with proper layering
+5. Verify transparent objects don't "pierce through" incorrectly
+
+### Pre-Write Checklist
+
+- [x] Irreversible decisions table checked — No schema/API changes, only logic fixes
+- [x] Public API contract unchanged — No endpoint changes
+- [x] No new dependencies installed
+- [x] Assumption named per Rule 1: "Simplified layer placement (always at top) is correct UX and avoids duplicate layer bugs"
+- [x] PROMPTS.md plan file confirmed as current before implementation
+
+### Constraints Added
+
+- **C-35: Layer Assignment Convention** — New figures always placed at highest layer + 1 (top of stack). Selection does not affect insertion point.
+- **C-36: Opacity Zero Exact Match** — Use strict equality (`=== 0`) for opacity zero detection, not `<= 0`, to avoid hiding near-transparent objects.
+- **C-37: Three.js Transparent Rendering Paths** — Use `transparent: false` for full opacity (=== 1.0), `transparent: true, depthWrite: false` for semi-transparent (< 1.0).
+
+### MEMORY.md Proposal
+
+1. **2026-04-29 · ARCHITECTURE · Layer bumping based on selection creates duplicate layer values and visual ordering bugs. Simplified approach: always place new figures at max layer + 1 (top of stack). Selection is for highlighting only, not insertion point.**
+
+2. **2026-04-29 · ARCHITECTURE · Three.js opacity rendering requires different material configurations for full vs semi-transparent: `transparent: false` for opacity === 1.0 (proper opaque depth handling), `transparent: true, depthWrite: false` for 0 < opacity < 1.0 (avoid "piercing" artifacts).**
 
 ---

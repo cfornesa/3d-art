@@ -58,6 +58,7 @@
         });
         this._renderer.setSize(this._canvas.clientWidth, this._canvas.clientHeight);
         this._renderer.setPixelRatio(window.devicePixelRatio);
+        this._renderer.sortObjects = true;
 
         // Lighting
         const ambientLight = new THREE.AmbientLight('#ffffff', 0.5);
@@ -145,10 +146,24 @@
     ThreeRenderer.prototype._createObject = function(figure) {
         const libraryData = figure.library_data || {};
         const color = new THREE.Color(figure.color || '#c9922a');
+        const opacity = parseFloat(figure.opacity);
+        const finalOpacity = !isNaN(opacity) ? opacity : 1.0;
+
+        // If fully transparent, return null so object isn't created
+        // Use exact comparison to avoid hiding objects that shouldn't be hidden
+        if (finalOpacity === 0) {
+            return null;
+        }
+
+        // Use different rendering paths based on opacity:
+        // - opacity === 1.0: opaque rendering (transparent: false, depthWrite: true)
+        // - 0 < opacity < 1.0: transparent rendering (transparent: true, depthWrite: false)
+        const isFullyOpaque = finalOpacity === 1.0;
         const material = new THREE.MeshStandardMaterial({
             color: color,
-            transparent: figure.opacity < 1.0,
-            opacity: figure.opacity !== undefined ? figure.opacity : 1.0,
+            transparent: !isFullyOpaque,
+            opacity: finalOpacity,
+            depthWrite: isFullyOpaque,
         });
         
         // CRITICAL: Mark material as needing update for opacity/transparency changes
@@ -248,6 +263,10 @@
 
             object.visible = figure.visible !== false;
 
+            // Set renderOrder based on layer for proper transparency sorting
+            // Higher layer = on top = higher renderOrder = renders later
+            object.renderOrder = figure.layer || 0;
+
             // Custom library data
             if (libraryData.castShadow) {
                 object.castShadow = true;
@@ -274,12 +293,31 @@
         if (!object) return;
 
         const color = new THREE.Color(figure.color || '#c9922a');
-        
+        const opacity = parseFloat(figure.opacity);
+        const finalOpacity = !isNaN(opacity) ? opacity : 1.0;
+
+        // Hide object if fully transparent
+        // Use exact comparison to avoid hiding objects that shouldn't be hidden
+        if (finalOpacity === 0) {
+            object.visible = false;
+            return;
+        }
+
+        // Show object if it was hidden due to opacity
+        if (figure.visible !== false) {
+            object.visible = true;
+        }
+
         // Update material
+        // Use different rendering paths based on opacity:
+        // - opacity === 1.0: opaque rendering (transparent: false, depthWrite: true)
+        // - 0 < opacity < 1.0: transparent rendering (transparent: true, depthWrite: false)
         if (object.material) {
+            const isFullyOpaque = finalOpacity === 1.0;
             object.material.color.set(color);
-            object.material.transparent = figure.opacity < 1.0;
-            object.material.opacity = figure.opacity !== undefined ? figure.opacity : 1.0;
+            object.material.transparent = !isFullyOpaque;
+            object.material.opacity = finalOpacity;
+            object.material.depthWrite = isFullyOpaque;
             object.material.needsUpdate = true;
         }
 
@@ -301,6 +339,9 @@
         );
 
         object.visible = figure.visible !== false;
+
+        // Update renderOrder based on layer for proper transparency sorting
+        object.renderOrder = figure.layer || 0;
     };
 
     /**

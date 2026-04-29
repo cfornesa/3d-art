@@ -113,9 +113,14 @@
     C2Renderer.prototype._drawFigure = function(figure) {
         if (!figure.visible) return;
 
+        // Skip rendering if opacity is 0 (fully transparent)
+        // Use exact comparison to avoid hiding objects that shouldn't be hidden
+        const opacity = parseFloat(figure.opacity);
+        if (!isNaN(opacity) && opacity === 0) return;
+
         const ctx = this._ctx;
         const libraryData = figure.library_data || {};
-        
+
         ctx.save();
         
         // Translate to position
@@ -135,7 +140,8 @@
         ctx.lineWidth = libraryData.strokeWidth || 1;
         
         // Global alpha for opacity
-        ctx.globalAlpha = figure.opacity !== undefined ? figure.opacity : 1.0;
+        const opacity = parseFloat(figure.opacity);
+        ctx.globalAlpha = !isNaN(opacity) ? opacity : 1.0;
         
         // Draw based on type
         const width = libraryData.width || 50;

@@ -129,11 +129,11 @@
             p.draw = function() {
                 try {
                     p.background('#0d0d0d');
-                    
+
                     // Center coordinate system - (0,0) is now at canvas center
-                    // Matches behavior of C2 and Three.js renderers
+                    // Use p.width/height so it works correctly after resizeCanvas()
                     p.push();
-                    p.translate(container.clientWidth / 2, container.clientHeight / 2);
+                    p.translate(p.width / 2, p.height / 2);
                     
                     // Always draw figures - p5.js calls draw() continuously
                     if (self._figures.length > 0) {
@@ -162,6 +162,8 @@
      * @param {p5} p - P5.js instance
      */
     P5Renderer.prototype._drawFigures = function(p) {
+        // Reset global alpha at start of frame
+        p.drawingContext.globalAlpha = 1.0;
         for (let i = 0; i < this._figures.length; i++) {
             const figure = this._figures[i];
             this._drawFigure(p, figure);
@@ -176,11 +178,20 @@
     P5Renderer.prototype._drawFigure = function(p, figure) {
         if (!figure.visible) return;
 
+        // Skip rendering if opacity is 0 (fully transparent)
+        // Use exact comparison to avoid hiding objects that shouldn't be hidden
+        const opacity = parseFloat(figure.opacity);
+        if (!isNaN(opacity) && opacity === 0) return;
+
         const libraryData = figure.library_data || {};
         
         // Set drawing style
         p.push();
-        
+
+        // Apply opacity using the underlying Canvas 2D context
+        // Note: opacity variable was already declared above
+        p.drawingContext.globalAlpha = opacity;
+
         // Translate to position
         p.translate(figure.position.x || 0, figure.position.y || 0);
         
@@ -321,31 +332,64 @@
      */
     P5Renderer.prototype.captureThumbnail = function(width, height) {
         if (!this._p5Instance) return '';
-        
-        var canvas = this._p5Instance.canvas;
-        var originalWidth = canvas.width;
-        var originalHeight = canvas.height;
-        
-        // Resize canvas for thumbnail
-        canvas.width = width;
-        canvas.height = height;
-        
+
+        // Get the actual HTMLCanvasElement
+        // p5.js may store canvas as wrapper object (canvas.elt) or directly as HTMLCanvasElement
+        var canvas = null;
+        if (this._p5Instance.canvas) {
+            if (this._p5Instance.canvas.elt) {
+                // Wrapped canvas (p5.Renderer object)
+                canvas = this._p5Instance.canvas.elt;
+            } else if (this._p5Instance.canvas instanceof HTMLCanvasElement) {
+                // Direct canvas reference
+                canvas = this._p5Instance.canvas;
+            }
+        }
+
+        if (!canvas) {
+            console.warn('[P5] captureThumbnail: No canvas element found');
+            return '';
+        }
+
+        console.log('[P5] captureThumbnail: Canvas found, dimensions:', canvas.width, 'x', canvas.height);
+
+        // Store original dimensions
+        var originalWidth = this._p5Instance.width;
+        var originalHeight = this._p5Instance.height;
+
+        // Use p5's resizeCanvas to properly update internal state
+        // This ensures p.width and p.height are updated for the draw function
+        if (this._p5Instance.resizeCanvas) {
+            this._p5Instance.resizeCanvas(width, height);
+            console.log('[P5] captureThumbnail: Resized to', width, 'x', height);
+        } else {
+            // Fallback: resize directly
+            canvas.width = width;
+            canvas.height = height;
+        }
+
         // Trigger redraw at new size
         if (this._p5Instance.redraw) {
             this._p5Instance.redraw();
         }
-        
+
         var imageData = canvas.toDataURL('image/png');
-        
-        // Restore original size
-        canvas.width = originalWidth;
-        canvas.height = originalHeight;
-        
+        console.log('[P5] captureThumbnail: Captured, data length:', imageData ? imageData.length : 0);
+
+        // Restore original size using resizeCanvas
+        if (this._p5Instance.resizeCanvas) {
+            this._p5Instance.resizeCanvas(originalWidth, originalHeight);
+            console.log('[P5] captureThumbnail: Restored to', originalWidth, 'x', originalHeight);
+        } else {
+            canvas.width = originalWidth;
+            canvas.height = originalHeight;
+        }
+
         // Trigger redraw to restore
         if (this._p5Instance.redraw) {
             this._p5Instance.redraw();
         }
-        
+
         return imageData;
     };
 

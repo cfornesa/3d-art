@@ -758,11 +758,16 @@
     var thumbnailData = '';
     if (_activeRenderer && _activeRenderer.captureThumbnail) {
       try {
+        console.log('[App] Capturing thumbnail from renderer:', _currentLibrary);
         thumbnailData = _activeRenderer.captureThumbnail(THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
+        console.log('[App] Thumbnail result:', thumbnailData ? 'SUCCESS (' + thumbnailData.length + ' chars)' : 'EMPTY');
         log('Thumbnail captured:', thumbnailData ? 'YES (' + thumbnailData.length + ' chars)' : 'NO');
       } catch (e) {
+        console.error('[App] Failed to capture thumbnail:', e.message);
         log('Failed to capture thumbnail:', e.message);
       }
+    } else {
+      console.warn('[App] No active renderer or captureThumbnail method');
     }
 
     // Build payload

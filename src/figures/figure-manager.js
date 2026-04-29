@@ -102,6 +102,7 @@
 
     /**
      * Create a default figure based on current library
+     * Always places new figure at the top (highest layer + 1)
      * @returns {Object} New figure with defaults
      */
     FigureManager.prototype.createDefaultFigure = function() {
@@ -110,14 +111,21 @@
             p5: { type: 'rect', library_data: { mode: 'center' } },
             c2: { type: 'rectangle', library_data: { fill: true, stroke: true } },
         };
-        
+
         const libraryDefaults = defaults[this._library] || defaults.three;
-        
+
+        // Always place at top (highest layer + 1) to avoid duplicate layer issues
+        const maxLayer = this._figures.reduce(function(max, f) {
+            return Math.max(max, f.layer || 0);
+        }, -1);
+        const newLayer = maxLayer + 1;
+
         return window.DataToArt.FigureBase.create({
             type: libraryDefaults.type,
             name: 'Figure ' + (this._figures.length + 1),
             color: '#c9922a',
             library_data: libraryDefaults.library_data,
+            layer: newLayer,
         });
     };
 
@@ -142,7 +150,10 @@
         }
         
         this._figures.push(figure);
-        this._sortByLayer();
+        // Sort by layer but DON'T reassign indices - preserve the layer values we calculated
+        this._figures.sort(function(a, b) {
+            return a.layer - b.layer;
+        });
         this._updateCountDisplay();
         this._updateUI();
         this._onChange({ action: 'add', figure: figure });
@@ -285,49 +296,43 @@
     };
 
     /**
-     * Move figure up in layer order (higher layer = on top)
+     * Move figure up in layer order (toward front, higher layer index)
      * @param {string} figureId - Figure ID to move
      */
     FigureManager.prototype.moveUp = function(figureId) {
         const index = this._findIndexById(figureId);
+        // Can't move up if already at the front (end of array)
         if (index === -1 || index >= this._figures.length - 1) {
             return;
         }
-        
-        // Swap with next figure
+
+        // Swap with next figure (toward front of stack = higher index)
         const temp = this._figures[index];
         this._figures[index] = this._figures[index + 1];
         this._figures[index + 1] = temp;
-        
-        // Update layer values
-        this._figures[index].layer = index;
-        this._figures[index + 1].layer = index + 1;
-        
-        this._sortByLayer();
+
+        this._assignLayerIndices();
         this._updateUI();
         this._onChange({ action: 'reorder', figureId: figureId });
     };
 
     /**
-     * Move figure down in layer order
+     * Move figure down in layer order (toward back, lower layer index)
      * @param {string} figureId - Figure ID to move
      */
     FigureManager.prototype.moveDown = function(figureId) {
         const index = this._findIndexById(figureId);
+        // Can't move down if already at the back (start of array)
         if (index === -1 || index <= 0) {
             return;
         }
-        
-        // Swap with previous figure
+
+        // Swap with previous figure (toward back of stack = lower index)
         const temp = this._figures[index];
         this._figures[index] = this._figures[index - 1];
         this._figures[index - 1] = temp;
-        
-        // Update layer values
-        this._figures[index].layer = index;
-        this._figures[index - 1].layer = index - 1;
-        
-        this._sortByLayer();
+
+        this._assignLayerIndices();
         this._updateUI();
         this._onChange({ action: 'reorder', figureId: figureId });
     };
@@ -348,12 +353,22 @@
     };
 
     /**
+     * Assign layer indices to match array positions (0 = bottom)
+     */
+    FigureManager.prototype._assignLayerIndices = function() {
+        for (let i = 0; i < this._figures.length; i++) {
+            this._figures[i].layer = i;
+        }
+    };
+
+    /**
      * Sort figures by layer order
      */
     FigureManager.prototype._sortByLayer = function() {
         this._figures.sort(function(a, b) {
             return a.layer - b.layer;
         });
+        this._assignLayerIndices();
     };
 
     /**
